@@ -3,6 +3,9 @@ classdef SeqModel < handle
         m_fName
         seqFile
     end
+    events
+        playStatusChange
+    end
     %singleton: only one SeqModel instance but you can change the seqfile 
     methods(Static)                                     
         function obj = getSeqFileInstance(fName)         %Static API
