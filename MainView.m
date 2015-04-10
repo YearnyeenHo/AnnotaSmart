@@ -1,7 +1,9 @@
 classdef MainView < handle
     properties
         m_viewSize
-        m_hfig
+        m_hFig
+        m_topMenu
+        
         m_playCanvas
         m_playOrPauseBtn
         m_newAnnotaBtn
@@ -26,21 +28,44 @@ classdef MainView < handle
         end
         
         function buildUI(obj)
-            obj.m_hfig = figure('pos', obj.m_viewSize);
+            obj.m_hFig = figure( 'Name','AnnotaSmart', 'NumberTitle','off', ...
+      'Toolbar','auto', 'MenuBar','none',...
+      'Color','w', 'Visible','on', 'Position',obj.m_viewSize);
+           
+           obj.menuInit(obj.m_hFig);
+  
+  
+  
+  
+  
             fig.x = obj.m_viewSize(1);%bottom left,the origin is on the bottom left corner of the screen
             fig.y = obj.m_viewSize(2);
             fig.w = obj.m_viewSize(3);
             fig.h = obj.m_viewSize(4);
             %the component coordinate is within the figure
-            obj.m_playOrPauseBtn = uicontrol('parent', obj.m_hfig, 'string', 'Play/Pause',...
+            obj.m_playOrPauseBtn = uicontrol('parent', obj.m_hFig, 'string', 'Play/Pause',...
                                 'pos',[fig.w*0.5 - 30, fig.h*0.1, 60, 30]);
-            obj.m_newAnnotaBtn =  uicontrol('parent', obj.m_hfig, 'string', 'New object',...
+            obj.m_newAnnotaBtn =  uicontrol('parent', obj.m_hFig, 'string', 'New object',...
                                 'pos',[fig.w*0.2, fig.h*0.9, 70, 30]);
-            obj.m_deleteAnnotaBtn = uicontrol('parent', obj.m_hfig, 'string', 'Delete object',...
+            obj.m_deleteAnnotaBtn = uicontrol('parent', obj.m_hFig, 'string', 'Delete object',...
                                 'pos',[fig.w*0.2 + 75, fig.h*0.9, 70, 30]);
-            obj.m_detectAnnotaBtn = uicontrol('parent', obj.m_hfig, 'string', 'Detect object',...
+            obj.m_detectAnnotaBtn = uicontrol('parent', obj.m_hFig, 'string', 'Detect object',...
                                 'pos',[fig.w*0.2 + 150, fig.h*0.9, 70, 30]);
         end
+        %layout init functions
+        function menuInit(obj, hFig)
+            obj.m_topMenu.hFile = uimenu(hFig, 'Label', 'File');
+            obj.m_topMenu.hOpen = uimenu(obj.m_topMenu.hFile, 'Label', 'Open...');
+            obj.m_topMenu.hSave = uimenu(obj.m_topMenu.hFile, 'Label', 'Save...');
+            obj.m_topMenu.hNew = uimenu(obj.m_topMenu.hFile,  'Label', 'new...');
+            
+            obj.m_topMenu.hVideo = uimenu(obj.m_topMenu.hOpen, 'Label', 'video');
+            obj.m_topMenu.hAnnotation = uimenu(obj.m_topMenu.hOpen,  'Label', 'annotation');
+            obj.m_topMenu.hSaveAnnotation = uimenu(obj.m_topMenu.hSave, 'Label', 'annotation file');
+            obj.m_topMenu.hNewAnnotationFile = uimenu(obj.m_topMenu.hNew,  'Label', 'annotation file');   
+        end
+        
+        
         %update the annotations in the frame
         function updateAnnotations(obj)
         end
