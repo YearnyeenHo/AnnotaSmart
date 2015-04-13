@@ -5,6 +5,11 @@ classdef SeqModel < handle
         m_FrameObjArray = []
         m_objEndFrmMap
         m_objStartFrmMap
+        m_state = 0
+    end
+    properties(Constant)
+        STATUS_STOP = 0;
+        STATUS_PlAY = 1;
     end
     events
         playStatusChange
@@ -43,6 +48,7 @@ classdef SeqModel < handle
             for i = 1:info.numFrames
                 obj.m_FrameObjArray = [obj.m_FrameObjArray FrameModel()];
             end
+            obj.m_state = obj.STATUS_STOP;
         end
         
         function numFrames = getNumFrames(obj)
@@ -57,29 +63,9 @@ classdef SeqModel < handle
 %             end
             img = obj.getImg(frmIndex);
             obj.setImgHandleForDisplay(img);
-            %set( pLf.hFrInd, 'String', int2str(frmIndex+1) );
-            %hObjCur=[hObjCur obj.drawBBObj('panelLf',frmIndex)];
         end
+        
         function drawBBObj(obj, frmIndex)
-%            os=A.objLists{ind+1}; 
-%            n=length(os);
-%           if(n>0)
-%               [~,ord]=sort([os.id]==objId); 
-%               os=os(ord); 
-%           end
-%           lockSet = get(pObj.hCbFix,'Value');
-%           playMode = strcmp(get(pObj.hObjTp,'enable'),'off');
-%           for i=1:n, o=os(i); id=o.id; lbl=A.objLbl(id);
-%             if(A.objHide(id)) 
-%                 continue; 
-%             end
-%             if(lockSet && id~=objId && ~playMode)
-%                 continue; 
-%             end
-%             static=(lockSet && id~=objId) || playMode;
-%             hs1=drawRect(o.pos,o.posv,lims,lbl,static,id,ind,-1);
-%             hs=[hs hs1]; %#ok<AGROW>
-%           end
         end
         
         function setImgHandleForDisplay(obj, img)
@@ -100,8 +86,13 @@ classdef SeqModel < handle
             end
         end
         function state = getStatus(obj)
-            state = 0;
+            state = obj.m_state;
         end
+        
+        function setStatus(obj, status)
+            obj.m_state = status;
+        end
+        
         function delete(obj)
             obj.m_seqFile.close();                                %release the memory
         end

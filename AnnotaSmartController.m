@@ -3,6 +3,7 @@ classdef AnnotaSmartController < handle
         m_viewObj
         m_seqObj
         m_curFrame
+     
         %m_bbObj
         %m_frameObj
     end
@@ -15,20 +16,20 @@ classdef AnnotaSmartController < handle
         end
         
         function callback_playOrPauseBtn(obj, src, event)
-           if obj.m_seqObj.getStatus()
-               obj.m_seqObj.seqPause();
+           if obj.m_seqObj.getStatus() == obj.m_seqObj.STATUS_PlAY 
+               obj.m_seqObj.setStatus(obj.m_seqObj.STATUS_STOP);
            else
                numFrames = obj.m_seqObj.getNumFrames();
-%                obj.m_curFrame = obj.m_curFrame + 1;
-%                if obj.m_curFrame <= numFrames
-%                    obj.m_seqObj.seqPlay(obj.m_viewObj.m_hFig, obj.m_viewObj.m_playerPanel.hAx, obj.m_curFrame);
-%                    drawnow();
-%                else
-%                    obj.m_curFrame = 0;
-%                end
-               for i = 1:numFrames 
+               playedNumFrame = obj.m_curFrame
+               obj.m_seqObj.setStatus(obj.m_seqObj.STATUS_PlAY);
+               
+               for i = playedNumFrame:numFrames 
+                   if obj.m_seqObj.getStatus() == obj.m_seqObj.STATUS_STOP
+                        break;
+                   end
                    obj.m_seqObj.seqPlay(obj.m_viewObj.m_hFig, obj.m_viewObj.m_playerPanel.hAx, i);
-                   drawnow();
+                   obj.m_curFrame = i;
+                   drawnow();          
                end
            end
         end
@@ -52,13 +53,14 @@ classdef AnnotaSmartController < handle
             % strcmp(key, KeyNames) -> [0, 0, 1, 0, 0, 0, 0]
             % strcmp(key, KeyNames) | KeyStatus -> [0, 0, 1, 1, 1, 0]
             viewObj.m_keyStatus = (strcmp(key, viewObj.m_keyNames) | viewObj.m_keyStatus);
-            
+  
             if viewObj.m_keyStatus(viewObj.m_KEY.RIGHT)
                 obj.displayNextFrame();
             elseif viewObj.m_keyStatus(viewObj.m_KEY.LEFT)
                 obj.displayLastFrame();
             end
         end
+        
         function callback_hotkeyUp(obj, src, event)
              key = get(obj.m_viewObj.m_hFig,'CurrentKey');
 %             % e.g., If 'd', 'j' and 's' are already held down, and key == 's'is
