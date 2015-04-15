@@ -20,7 +20,7 @@ classdef AnnotaSmartController < handle
                obj.m_seqObj.setStatus(obj.m_seqObj.STATUS_STOP);
            else
                numFrames = obj.m_seqObj.getNumFrames();
-               playedNumFrame = obj.m_curFrame
+               playedNumFrame = obj.m_curFrame;
                obj.m_seqObj.setStatus(obj.m_seqObj.STATUS_PlAY);
                
                for i = playedNumFrame:numFrames 
