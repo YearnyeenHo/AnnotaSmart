@@ -3,7 +3,7 @@ classdef AnnotaSmartController < handle
         m_viewObj
         m_seqObj
         m_curFrame
-     
+        m_rectVector = []
         %m_bbObj
         %m_frameObj
     end
@@ -35,8 +35,9 @@ classdef AnnotaSmartController < handle
         end
         
         function callback_newAnnotaBtn(obj, src, event)
+%             set(obj.m_viewObj.m_hFig, 'WindowButtonDownFcn', @obj.btnDown);
+            obj.m_rectVector = [obj.m_rectVector DrawRectHelper(obj.m_viewObj.m_hFig, obj.m_viewObj.m_playerPanel.hAx)];
         end
-        
         function callback_deleteAnnotaBtn(obj, src, event)
         end
         
@@ -94,6 +95,15 @@ classdef AnnotaSmartController < handle
                 obj.m_curFrame = 0;
             end
         end
+        
+%         function btnDown(obj, src, event)
+%             obj.m_rectVector = [obj.m_rectVector DrawRectHelper(obj.m_viewObj.m_hFig, obj.m_viewObj.m_playerPanel.hAx)];
+%             set(obj.m_viewObj.m_hFig, 'WindowButtonDownFcn', '');
+%         end
+        
+%         function btnUp(obj, src, event)
+%             set(obj.m_viewObj.m_hFig, 'WindowButtonDownFcn', '');
+%         end
     end
     
 end
