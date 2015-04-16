@@ -23,8 +23,8 @@ classdef DrawRectHelper < handle
                 obj.m_rectPos = rectPos;
             end
             
-            if get(obj.m_hFig, 'CurrentAxes') ~= hAx
-                set( obj.m_hFig, 'CurrentAxes', hAx );
+            if get(obj.m_hFig, 'CurrentAxes') ~= curAxes
+                set( obj.m_hFig, 'CurrentAxes', curAxes );
             end
             
             obj.drawInit();%初始化绘图对象
@@ -39,6 +39,9 @@ classdef DrawRectHelper < handle
         end
         
         function drawInit(obj)
+            color = 'y';
+            lwidth = 2;
+            lstyle = '-';
             properties = {'color',color,'LineWidth',lwidth,'LineStyle',lstyle};
             if isempty(obj.m_rectPos)%假设是从文件中读入的
              visible='off'; 
@@ -55,8 +58,8 @@ classdef DrawRectHelper < handle
         
         function setCallBackFcn(obj)
             % set callbacks on all objects
-            set(obj.m_hPatch, 'ButtonDownFcn', @btnDown, 'DeleteFcn', @deleteFcn);
-            set(obj.m_hLines, 'ButtonDownFcn', @btnDown, 'DeleteFcn', @deleteFcn);
+            set(obj.m_hPatch, 'ButtonDownFcn', @obj.btnDown, 'DeleteFcn', @obj.deleteFcn);
+            set(obj.m_hLines, 'ButtonDownFcn', @obj.btnDown, 'DeleteFcn', @obj.deleteFcn);
         end
         
         function initPosition(obj)
@@ -66,25 +69,27 @@ classdef DrawRectHelper < handle
         end
         %%%%%%%%%%%%%%%%%%% btnDwn %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         function btnDown(obj, src, event)
-            if(~isvalid(obj.m_hLines) || isvalid(obj.m_hPatch))
+            if(isempty(obj.m_hLines) || isempty(obj.m_hPatch))
                 return; 
             end
              if isempty(obj.m_rectPos)
                 obj.createRectBox();%一个像素点可见
                 cursor = 'botr';
+                anchor = [1, 1];
+                op = 'resize';
              else %以后每次进来都先设置cursor
-                 curPt = DrawRectHelper.getCurrentPt();
-                 [~,cursor,~] = obj.getCursorDirection(curPt);
+                curPt = obj.getCurrentPt();
+                [anchor, cursor, op] = obj.getCursorDirection(curPt);
              end
             
             set( obj.m_hFig, 'Pointer', cursor );
-            set( obj.m_hFig, 'WindowButtonMotionFcn',@drag);%立即给当前矩形绑定变形函数
-            set( obj.m_hFig, 'WindowButtonUpFcn', @stopDrag );
+            set( obj.m_hFig, 'WindowButtonMotionFcn',{@obj.drag, anchor, op});%立即给当前矩形绑定变形函数
+            set( obj.m_hFig, 'WindowButtonUpFcn', @obj.stopDrag );
             %第一次调用返回后，Initialize那边会有个wait等待第二次点击，一击为常见像素点大小的矩形，等待二击，drag 
         end
         function createRectBox(obj)
             if(isempty(obj.m_rectPos))
-                anchor=ginput(1);
+                anchor=ginput(1);%axes origin is top left
             else
                 anchor=obj.m_rectPos(1:2);
             end
@@ -107,31 +112,41 @@ classdef DrawRectHelper < handle
             k = radius/3;
             dirFlag = zeros(1,2);
             for i = 1:2
-                if curPt(i) < (centerPt(i) - radius(i) + k)%lf/bt
+                if curPt(i) < (centerPt(i) - radius(i) + k(i))%lf/tp
                     dirFlag(i) = -1;
-                elseif curPt(i) > (centerPt(i) + radius(i) - k)%/rt/tp
-                    dirFlag(i) = +1;
+                elseif curPt(i) > (centerPt(i) + radius(i) - k(i))%/rt/bt
+                    dirFlag(i) = 1;
                 end
             end
-            opVec = ['resize', 'translation'];
-            cursorMatrix = {'topl','top','topr';'left','fleur','right';'botl','bottom','botr'};
-            index = dirFlag+2;
-            cursor = cursorMatrix(index(1),index(2));
+            opVec = {'resize', 'translation'};
+            cursorMatrix = {'topl','left','botl';'bottom','fleur','top';'topr','right','botr'};
+            index = dirFlag + 2;
+            cursor = cursorMatrix{index(1),index(2)};
             if strcmp(cursor,'fleur')
-                op = opVec(2);
+                op = opVec{2};
                 anchor = curPt;
             else
-                op = opVec(1);
+                anchor = dirFlag;
+                op = opVec{1};
             end
         end
-      
+        function curPt = getCurrentPt(obj)
+            %从当前坐标系，获取最近一次点击的位置
+            %the axes origin is on top left!!!
+            curPt=get(obj.m_curAxes,'CurrentPoint');
+            %返回的结构是
+            %x1 y1 1
+            %x1 y1 0
+            %所以取[1 3]，就是取了x1和y1
+            curPt = curPt([1 3]);
+        end
         %%%%%%%%%%%%%%%%%%%%%  drag  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         %可能是平移或变形，处理后得到pos，它们最后都要调用setPos(pos)，
         %如果注册了posChangeCallback，还要手工调用!
         %最后drawnow %来update display
-        function drag(obj, src, event)
-            curPt = DrawRectHelper.getCurrentPt();
-            [anchor,~,op] = obj.getCursorDirection(curPt);
+        function drag(obj, src, event, anchor, op)
+            curPt = obj.getCurrentPt();
+            
             if strcmp(op,'translation')
                 obj.DragToTranslation(curPt);
             else
@@ -146,10 +161,10 @@ classdef DrawRectHelper < handle
             drawnow;
         end
         
-        function DragToTranslation(obj, lastPt)
+        function DragToTranslation(obj, curPt)
             
-            latestPt = DrawRectHelper.getCurrentPt();
-            obj.m_rectPos = [obj.m_rectPos(1:2)+(latestPt - lastPt) obj.m_rectPos(3:4)];
+            [centerPt,~] = DrawRectHelper.getCenterPtAndRads(obj.m_rectPos);
+            obj.m_rectPos = [obj.m_rectPos(1:2)+(curPt - centerPt) obj.m_rectPos(3:4)];
         end
         
         function DragToResize(obj, anchor, curPt)
@@ -164,13 +179,14 @@ classdef DrawRectHelper < handle
                     rPtMin(i) = distance(i);
                 end
             end
-            obj.rPtToRectPos(obj, rPtMin, rPtMax);
+            obj.rPtToRectPos(rPtMin, rPtMax);
         end
     
         function stopDrag(obj, src, event)
-            set( hFig, 'Pointer', 'arrow' );
-            set( hFig, 'WindowButtonMotionFcn','');
-            set( hFig, 'WindowButtonUpFcn','');
+            set( obj.m_hFig, 'Pointer', 'arrow' );
+            set( obj.m_hFig, 'WindowButtonMotionFcn','');
+            set( obj.m_hFig, 'WindowButtonUpFcn','');
+            set( obj.m_hFig, 'WindowButtonDownFcn','');
             if ~isempty(obj.m_posSetCallback)
                 obj.m_posSetCallback(obj.m_rectPos); 
             end;
@@ -193,8 +209,8 @@ classdef DrawRectHelper < handle
         %vert);或那个line的，反正用的是同一个句柄，只是重新设值，就是这要刷新屏幕，还是原来的对象只是样子变了
         %就相当于重新画了
         function updateRectPosAppearance(obj)
-            obj.setPatch(obj.m_rectPos)
-            obj.setBoundaries()
+            obj.setPatch(obj.m_rectPos);
+            obj.setBoundaries();
         end
         
         function setPatch(obj, rectPos)
@@ -207,16 +223,26 @@ classdef DrawRectHelper < handle
         
         function setBoundaries(obj)
             % draw rectangle boundaries and control circles
-            for i=1:length(hBnds)
+            for i=1:length(obj.m_hLines)
                 indicesPair = mod([i-1 i],4)+1;%hBnd是一个句柄数组，放的是矩形4条line的句柄
                 %Xdata是取值范围？想表示边长？获得xs(ids)可以表示一个区间
-                set(obj.m_hLines(i), 'Xdata', xs(indicesPair), 'Ydata', ys(indicesPair));%xs(ids),默认取矩阵的第一列（不过xs也就只有一列）的某几个下标的元素，ids=[2 3]时就取第2、3个
+                [xVector, yVector] = DrawRectHelper.rectPosToVerticesVec(obj.m_rectPos);
+                set(obj.m_hLines(i), 'Xdata', xVector(indicesPair), 'Ydata', yVector(indicesPair));%xs(ids),默认取矩阵的第一列（不过xs也就只有一列）的某几个下标的元素，ids=[2 3]时就取第2、3个
                 %构成第i条边的边上的点的x与y的区间
              end
         end
         
-        function deleteFcn(obj, src, event)
-            obj.delete();
+        function deleteFcn(obj,  h, evnt)
+            hdls = {obj.m_hLines, obj.m_hPatch, obj.m_posChangeCallback, obj.m_posSetCallback};
+            for i = 1:length(hdls)
+                if ishandle(hdls(i))
+                    delete(hdls(i));
+                end
+            end
+              hdls = deal([]);
+             obj.m_hFig = [];
+             obj.m_curAxes = [];
+             obj.m_rectPos = [];
         end
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%        
         function setPosChangeCallback(obj, func)
@@ -229,18 +255,9 @@ classdef DrawRectHelper < handle
     end
     
     methods(Static)
-        function curPt = getCurrentPt()
-            %从当前坐标系，获取最近一次点击的位置
-            curPt=get(hAx,'CurrentPoint');%返回的结构是
-            %x1 y1 1
-            %x1 y1 0
-            %所以取[1 3]，就是取了x1和y1
-            curPt = curPt([1 3]);
-        end
-        
         function [xVector, yVector] = rectPosToVerticesVec(rectPos)
-           xVector = [rectPos(1) rectPos(1)+rectPos(3) rectPos(1)+rectPos(3) rectPos(1)];
-           yVector = [rectPos(2) rectPos(2) rectPos(1)+rectPos(4) rectPos(1)+rectPos(4)]; 
+           xVector = [rectPos(1) rectPos(1)+rectPos(3) rectPos(1)+rectPos(3) rectPos(1)]';
+           yVector = [rectPos(2) rectPos(2) rectPos(2)+rectPos(4) rectPos(2)+rectPos(4)]'; 
         end
         function [centerPt,radius] = getCenterPtAndRads(rectPos)
             radius = rectPos(3:4)/2;
