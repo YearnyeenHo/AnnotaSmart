@@ -39,10 +39,10 @@ classdef DrawRectHelper < handle
         end
         
         function drawInit(obj)
-            color = 'y';
+            color = DrawRectHelper.randColor();
             lwidth = 2;
             lstyle = '-';
-            properties = {'color',color,'LineWidth',lwidth,'LineStyle',lstyle};
+            properties = {'color', color, 'LineWidth', lwidth, 'LineStyle', lstyle};
             if isempty(obj.m_rectPos)%假设是从文件中读入的
              visible='off'; 
             else
@@ -52,8 +52,9 @@ classdef DrawRectHelper < handle
             for i=1:4
                 obj.m_hLines(i)=line(properties{:},'Visible',visible); 
             end
-            %create patch    
-            obj.m_hPatch=patch('FaceColor','g','FaceAlpha',0.1,'EdgeColor','none');
+            %create patch 
+            color = DrawRectHelper.randColor();
+            obj.m_hPatch=patch('FaceColor', color, 'FaceAlpha', 0.1, 'EdgeColor', 'none');
         end
         
         function setCallBackFcn(obj)
@@ -255,6 +256,14 @@ classdef DrawRectHelper < handle
     end
     
     methods(Static)
+        function color = randColor()
+            colorVec = ['y', 'b', 'g','r', 'c'];
+            index = round((rand()*10)/2);
+            if index < 1
+                index = 1;
+            end
+            color = colorVec(index);
+        end
         function [xVector, yVector] = rectPosToVerticesVec(rectPos)
            xVector = [rectPos(1) rectPos(1)+rectPos(3) rectPos(1)+rectPos(3) rectPos(1)]';
            yVector = [rectPos(2) rectPos(2) rectPos(2)+rectPos(4) rectPos(2)+rectPos(4)]'; 
