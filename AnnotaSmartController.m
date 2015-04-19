@@ -31,7 +31,7 @@ classdef AnnotaSmartController < handle
                    if obj.m_seqObj.getStatus() == obj.m_seqObj.STATUS_STOP
                         break;
                    end
-                   obj.m_seqObj.seqPlay(obj.m_viewObj.m_hFig, obj.m_viewObj.m_playerPanel.hAx, i);
+                   obj.m_seqObj.seqPlay(i-1, i);
                    obj.m_curFrame = i;
                    drawnow();          
                end
@@ -50,8 +50,9 @@ classdef AnnotaSmartController < handle
         end
         function callback_deleteAnnotaBtn(obj, src, event)    
 
-                bbObj = obj.m_seqObj.getBBObj(obj.m_curFrame, obj.m_bbId);
-                bbObj.deleteRect();
+%                 bbObj = obj.m_seqObj.getBBObj(obj.m_curFrame, obj.m_bbId);
+%                 bbObj.deleteRect();
+                obj.m_seqObj.deleteBBObj(obj.curFrame, obj.m_bbId);
          
         end
         
@@ -111,7 +112,7 @@ classdef AnnotaSmartController < handle
             obj.m_curFrame = obj.m_curFrame + 1;
 
             if obj.m_curFrame <= numFrames
-               obj.m_seqObj.seqPlay(obj.m_viewObj.m_hFig, obj.m_viewObj.m_playerPanel.hAx, obj.m_curFrame);
+               obj.m_seqObj.seqPlay(obj.m_curFrame - 1,obj.m_curFrame);
                drawnow();
             else
                obj.m_curFrame = 0;
@@ -122,7 +123,7 @@ classdef AnnotaSmartController < handle
             obj.m_curFrame = obj.m_curFrame - 1;
 
             if obj.m_curFrame >= 1
-                obj.m_seqObj.seqPlay(obj.m_viewObj.m_hFig, obj.m_viewObj.m_playerPanel.hAx, obj.m_curFrame);
+                obj.m_seqObj.seqPlay(obj.m_curFrame + 1, obj.m_curFrame);
                 drawnow();
             else
                 obj.m_curFrame = 0;

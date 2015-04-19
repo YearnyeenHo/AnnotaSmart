@@ -59,8 +59,8 @@ classdef MainView < handle
             obj.m_topMenu.hSave = uimenu(obj.m_topMenu.hFile, 'Label', 'Save...');
             obj.m_topMenu.hNew = uimenu(obj.m_topMenu.hFile,  'Label', 'new...');
             
-            obj.m_topMenu.hVideo = uimenu(obj.m_topMenu.hOpen, 'Label', 'video');
-            obj.m_topMenu.hAnnotation = uimenu(obj.m_topMenu.hOpen,  'Label', 'annotation');
+            obj.m_topMenu.hOpenVideo = uimenu(obj.m_topMenu.hOpen, 'Label', 'video');
+            obj.m_topMenu.hOpenAnnotation = uimenu(obj.m_topMenu.hOpen,  'Label', 'annotation');
             obj.m_topMenu.hSaveAnnotation = uimenu(obj.m_topMenu.hSave, 'Label', 'annotation file');
             obj.m_topMenu.hNewAnnotationFile = uimenu(obj.m_topMenu.hNew,  'Label', 'annotation file'); 
             %the component coordinate is within the figure
@@ -109,11 +109,23 @@ classdef MainView < handle
             funcH = @controller.callback_detectAnnotaBtn;
             set(obj.m_detectAnnotaBtn, 'callback', funcH);
             
-            funcH = @controller.callback_hotkeyDown;
+            funcH = @controller.keyPressFcn_hotkeyDown;
             set(obj.m_hFig, 'KeyPressFcn', funcH);
             
-            funcH = @controller.callback_hotkeyUp;
+            funcH = @controller.keyReleaseFcn_hotkeyUp;
             set(obj.m_hFig, 'KeyReleaseFcn', funcH);
+            %top menu call back
+            funcH = @controller.callback_openVideo;
+            set(obj.m_topMenu.hOpenVideo, 'callback', funcH);
+
+            funcH = @controller.callback_openAnnotation;
+            set(obj.m_topMenu.hOpenAnnotation, 'callback', funcH);
+
+            funcH = @controller.callback_saveAnnotation;
+            set(obj.m_topMenu.hSaveAnnotation, 'callback', funcH);
+
+%             funcH = @controller.callback_detectAnnotaBtn;
+%             set(obj.m_topMenu.hNewAnnotationFile, 'callback', funcH);          
         end
         
     end

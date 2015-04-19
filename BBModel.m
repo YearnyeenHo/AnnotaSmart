@@ -37,15 +37,23 @@ classdef BBModel < handle
             %else,draw a rect immediately
             hFig = BBModel.figHandle();
             hAxe = BBModel.axesHandle();
-            obj.m_drawHelper = DrawRectHelper(hFig, hAxe, obj.m_pos);
-            funcH = @obj.callback_rectSelected;
-            obj.m_drawHelper.setSelectedCallback(funcH);
+            selfunc = @obj.callback_rectSelected;
+            setPosfunc = @obj.setPos;
+            obj.m_drawHelper = DrawRectHelper(hFig, hAxe, obj.m_pos, setPosfunc, selfunc);
         end
         
         function deleteRect(obj)
             %delete the rect on the frame
-           obj.m_drawHelper.deleteFcn();
-           obj.m_drawHelper.delete();
+            %delete the graphic handle when it is not visible
+            if ~isempty(obj.m_drawHelper)
+                obj.m_drawHelper.deleteFcn();
+                
+                obj.m_drawHelper.delete();
+                obj.m_drawHelper = [];
+            end
+        end
+        function delete(obj)
+            obj.deleteRect();
         end
         
         function callback_rectSelected(obj)
@@ -55,7 +63,7 @@ classdef BBModel < handle
                 end
                 funcH(obj.m_objId);
         end
-        
+     
     end
   
     methods(Static)
@@ -71,23 +79,23 @@ classdef BBModel < handle
         
         function funcH = selectedCallbackFcn(cbfcn)
             persistent callbackFcn;
-            if isempty(callbackFcn)
+            if nargin == 1
                 callbackFcn = cbfcn;
             end
             funcH = callbackFcn;
         end
         
         function hFig = figHandle(newHFig)
-        persistent pstHFig;
-        if isempty(pstHFig)
+            persistent pstHFig;
+            if nargin == 1
                 pstHFig = newHFig;
-        end
+            end
             hFig = pstHFig;
         end
             
         function hAxes = axesHandle(newHAxes)
-            persistent pstHAxes;
-            if isempty(pstHAxes)
+            persistent pstHAxes;       
+            if nargin == 1
                 pstHAxes = newHAxes;
             end
             hAxes = pstHAxes;

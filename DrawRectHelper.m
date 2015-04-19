@@ -12,7 +12,7 @@ classdef DrawRectHelper < handle
     end
     methods
         %加入读入文件，已有pos的话应该即刻设置并调用setPos，直接画出来即可
-        function obj = DrawRectHelper(hFig, curAxes, rectPos)
+        function obj = DrawRectHelper(hFig, curAxes, rectPos, setPosFunc, selectedFunc)
             if isempty(curAxes) || isempty(hFig)
                 error('handle empty');
             end
@@ -20,18 +20,21 @@ classdef DrawRectHelper < handle
             obj.m_hFig = hFig;
             obj.m_curAxes = curAxes;
             
-            if nargin == 3
+            if nargin >= 3
                 obj.m_rectPos = rectPos;
             end
             
-            if get(obj.m_hFig, 'CurrentAxes') ~= curAxes
+            obj.setPosSetCallback(setPosFunc);
+            obj.setSelectedCallback(selectedFunc);
+            
+            %if get(obj.m_hFig, 'CurrentAxes') ~= curAxes
                 set( obj.m_hFig, 'CurrentAxes', curAxes );
-            end
+            %end
             
             obj.drawInit();%初始化绘图对象
             
             if ~isempty(obj.m_rectPos)
-                updateRectPosAppearance();%从文件或已有数据读入，可以即刻画了
+                obj.updateRectPosAppearance();%从文件或已有数据读入，可以即刻画了
             else
                 obj.initPosition();%产生一像素点可见
             end

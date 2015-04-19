@@ -17,8 +17,8 @@ classdef FrameModel < handle
            bbObj = obj.m_bbMap(num2str(bbId));
         end
         
-        function removeObj(obj, bbObj)
-            remove(obj.m_bbMap, num2str(bbObj.getObjId()));
+        function removeObj(obj, bbId)
+            remove(obj.m_bbMap, num2str(bbId));
         end
         
     end

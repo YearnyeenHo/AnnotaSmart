@@ -79,18 +79,17 @@ classdef SeqModel < handle
                numFrames = info.numFrames;
         end
         
-        function seqPlay(obj, hFig, curAxes, frmIndex)
+        function seqPlay(obj, lastFrmNum, curFrmNum)
             if isempty(obj.m_seqFile)
                 return;
             end 
-            img = obj.getImg(frmIndex);
+            img = obj.getImg(curFrmNum);
             obj.setImgHandleForDisplay(img);
-            obj.updateAnnotations(frmIndex - 1, frmIndex);
-            
+            obj.updateAnnotations(lastFrmNum, curFrmNum);
         end
         
         function updateAnnotations(obj, lastFrmNum, curFrmNum)
-          if  lastFrmNum > 0
+          if  lastFrmNum > 0 && lastFrmNum <= obj.getNumFrames()
             lastFrmObj = obj.m_FrameObjArray(lastFrmNum);
             bbObjSet = values(lastFrmObj.m_bbMap);
             len = length(bbObjSet);
@@ -134,6 +133,16 @@ classdef SeqModel < handle
         
         function setStatus(obj, status)
             obj.m_state = status;
+        end
+        
+        function deleteBBObj(frmNum, bbId)
+          %delete obj from curframe to the endFrm
+          endFrmNum = obj.m_objEndFrmMap(num2str(bbId));
+            for i = frmNum:endFrmNum
+                frmObj = obj.m_FrameObjArray(i);
+               
+                frmObj.removeObj(bbId);%会触发BBModel会自动调用delete吗？调试下就知道
+            end
         end
         
         function delete(obj)
