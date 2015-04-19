@@ -1,7 +1,7 @@
 classdef SeqModel < handle
     properties
         m_seqFile
-        m_hImg = []
+        m_hImg
         m_FrameObjArray = []
         m_objEndFrmMap
         m_objStartFrmMap
@@ -42,6 +42,29 @@ classdef SeqModel < handle
  
     
     methods
+        function frmArray = getFrmArray(obj)
+            frmArray = obj.m_FrameObjArray;
+        end
+        
+        function bbId = addBBToAFrm(obj, hFig, hAx, curfrmNum, oldBBId)
+            curFrmObj = obj.m_FrameObjArray(curfrmNum);
+            if nargin < 5
+                bbObj = BBModel(hFig, hAx);
+                curFrmObj.addObj(bbObj);
+                obj.m_objStartFrmMap(num2str(bbObj.getObjId())) = curfrmNum;
+                obj.m_objEndFrmMap(num2str(bbObj.getObjId())) = curfrmNum;
+            else
+                bbObj = BBModel(oldBBId);
+                curFrmObj.addObj(bbObj);
+                obj.m_objEndFrmMap(num2str(bbObj.getObjId())) = curfrmNum;
+            end
+            bbId = bbObj.getObjId();
+        end
+
+        function bbObj = getBBObj(obj, frmNum, bbId)
+            curFrmObj = obj.m_FrameObjArray(frmNum);
+            bbObj = curFrmObj.getObj(bbId);
+        end
         function openSeqFile(obj, fName)
             obj.m_seqFile = seqIo( fName,'r');
             info = obj.m_seqFile.getinfo();
@@ -55,17 +78,37 @@ classdef SeqModel < handle
                info = obj.m_seqFile.getinfo();
                numFrames = info.numFrames;
         end
+        
         function seqPlay(obj, hFig, curAxes, frmIndex)
-            set( hFig, 'CurrentAxes', curAxes ); 
-            
-%             if(replay) 
-%                 ind=ind-nPlay;%current index minus the number of frames that just played 
-%             end
+            if isempty(obj.m_seqFile)
+                return;
+            end 
             img = obj.getImg(frmIndex);
             obj.setImgHandleForDisplay(img);
+            obj.updateAnnotations(frmIndex - 1, frmIndex);
+            
         end
         
-        function drawBBObj(obj, frmIndex)
+        function updateAnnotations(obj, lastFrmNum, curFrmNum)
+          if  lastFrmNum > 0
+            lastFrmObj = obj.m_FrameObjArray(lastFrmNum);
+            bbObjSet = values(lastFrmObj.m_bbMap);
+            len = length(bbObjSet);
+            if len ~= 0
+                for i = 1:len
+                    bbObjSet{i}.deleteRect();          
+                end
+            end
+          end
+          
+           curFrmObj = obj.m_FrameObjArray(curFrmNum);
+           bbObjSet = values(curFrmObj.m_bbMap);
+           len = length(bbObjSet);
+           if len ~= 0 
+               for i = 1:len
+                     bbObjSet{i}.drawRect();
+               end
+           end
         end
         
         function setImgHandleForDisplay(obj, img)

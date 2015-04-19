@@ -1,21 +1,25 @@
 classdef FrameModel < handle   
 
     properties
-        m_bbList = []                                                    %record BBModel Obj that are within the frame
+        m_bbMap                                      %record BBModel Obj that are within the frame
     end
     
     methods
         function obj = FrameModel()
+            obj.m_bbMap = containers.Map;
         end
-        function AddObj(obj, bbObj)
-            obj.m_bbList = [obj.m_bbList, bbObj];
+        
+        function addObj(obj, bbObj)
+            obj.m_bbMap(num2str(bbObj.getObjId())) = bbObj;
+        end
+        
+        function bbObj = getObj(obj, bbId)
+           bbObj = obj.m_bbMap(num2str(bbId));
         end
         
         function removeObj(obj, bbObj)
-            index = ~strcmp(obj.m_bbList ,bbObj);
-            obj.m_bbList = obj.m_bbList(index); 
+            remove(obj.m_bbMap, num2str(bbObj.getObjId()));
         end
-
         
     end
     

@@ -8,6 +8,7 @@ classdef DrawRectHelper < handle
         m_rectPos
         m_posChangeCallback
         m_posSetCallback
+        m_selectedCallback
     end
     methods
         %加入读入文件，已有pos的话应该即刻设置并调用setPos，直接画出来即可
@@ -82,7 +83,9 @@ classdef DrawRectHelper < handle
                 curPt = obj.getCurrentPt();
                 [anchor, cursor, op] = obj.getCursorDirection(curPt);
              end
-            
+            if ~isempty(obj.m_selectedCallback)
+                obj.m_selectedCallback();
+            end
             set( obj.m_hFig, 'Pointer', cursor );
             set( obj.m_hFig, 'WindowButtonMotionFcn',{@obj.drag, anchor, op});%立即给当前矩形绑定变形函数
             set( obj.m_hFig, 'WindowButtonUpFcn', @obj.stopDrag );
@@ -233,14 +236,14 @@ classdef DrawRectHelper < handle
              end
         end
         
-        function deleteFcn(obj,  h, evnt)
+        function deleteFcn(obj, src, event)
             hdls = {obj.m_hLines, obj.m_hPatch, obj.m_posChangeCallback, obj.m_posSetCallback};
             for i = 1:length(hdls)
-                if ishandle(hdls(i))
-                    delete(hdls(i));
+                if ishandle(hdls{i})
+                    delete(hdls{i});
                 end
             end
-              hdls = deal([]);
+             hdls = deal([]);
              obj.m_hFig = [];
              obj.m_curAxes = [];
              obj.m_rectPos = [];
@@ -253,14 +256,18 @@ classdef DrawRectHelper < handle
         function setPosSetCallback(obj, func)
             obj.m_posSetCallback = func; 
         end
+        
+        function setSelectedCallback(obj, func)
+            obj.m_selectedCallback = func;
+        end
     end
     
     methods(Static)
         function color = randColor()
             colorVec = ['y', 'b', 'g','r', 'c'];
-            index = round((rand()*10)/2);
-            if index < 1
-                index = 1;
+            index = 0;
+            while index < 1
+               index = round((rand()*10)/2);
             end
             color = colorVec(index);
         end
