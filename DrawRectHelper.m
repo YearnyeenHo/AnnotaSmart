@@ -12,7 +12,7 @@ classdef DrawRectHelper < handle
     end
     methods
         %加入读入文件，已有pos的话应该即刻设置并调用setPos，直接画出来即可
-        function obj = DrawRectHelper(hFig, curAxes, rectPos, setPosFunc, selectedFunc)
+        function obj = DrawRectHelper(hFig, curAxes, id, rectPos, setPosFunc, selectedFunc)
             if isempty(curAxes) || isempty(hFig)
                 error('handle empty');
             end
@@ -31,7 +31,7 @@ classdef DrawRectHelper < handle
                 set( obj.m_hFig, 'CurrentAxes', curAxes );
             %end
             
-            obj.drawInit();%初始化绘图对象
+            obj.drawInit(id);%初始化绘图对象
             
             if ~isempty(obj.m_rectPos)
                 obj.updateRectPosAppearance();%从文件或已有数据读入，可以即刻画了
@@ -42,8 +42,8 @@ classdef DrawRectHelper < handle
             obj.setCallBackFcn();
         end
         
-        function drawInit(obj)
-            color = DrawRectHelper.randColor();
+        function drawInit(obj, id)
+            color = DrawRectHelper.rectColor(id);
             lwidth = 2;
             lstyle = '-';
             properties = {'color', color, 'LineWidth', lwidth, 'LineStyle', lstyle};
@@ -57,7 +57,7 @@ classdef DrawRectHelper < handle
                 obj.m_hLines(i)=line(properties{:},'Visible',visible); 
             end
             %create patch 
-            color = DrawRectHelper.randColor();
+%             color = DrawRectHelper.randColor();
             obj.m_hPatch=patch('FaceColor', color, 'FaceAlpha', 0.1, 'EdgeColor', 'none');
         end
         
@@ -266,12 +266,13 @@ classdef DrawRectHelper < handle
     end
     
     methods(Static)
-        function color = randColor()
-            colorVec = ['y', 'b', 'g','r', 'c'];
-            index = 0;
-            while index < 1
-               index = round((rand()*10)/2);
-            end
+        function color = rectColor(id)
+            colorVec = ['y', 'b', 'g','r', 'c', 'm'];
+%             index = 0;
+%             while index < 1
+%                index = round((rand()*10)/2);
+%             end
+            index = mod(id, length(colorVec)) + 1;
             color = colorVec(index);
         end
         function [xVector, yVector] = rectPosToVerticesVec(rectPos)

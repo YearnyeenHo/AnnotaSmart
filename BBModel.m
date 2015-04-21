@@ -39,7 +39,7 @@ classdef BBModel < handle
             hAxe = BBModel.axesHandle();
             selfunc = @obj.callback_rectSelected;
             setPosfunc = @obj.setPos;
-            obj.m_drawHelper = DrawRectHelper(hFig, hAxe, obj.m_pos, setPosfunc, selfunc);
+            obj.m_drawHelper = DrawRectHelper(hFig, hAxe, obj.m_objId, obj.m_pos, setPosfunc, selfunc);
         end
         
         function deleteRect(obj)
