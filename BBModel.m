@@ -4,21 +4,22 @@ classdef BBModel < handle
         m_objId
         m_pos
         m_drawHelper
-        m_selectedCallback
+        m_selectedCallbackFcn
     end
     
     methods
-        function obj = BBModel(hFig, hAxes, id)
+        function obj = BBModel(hFig, hAxes, selectedFcn, id)
             obj.m_pos = [];
-            obj.m_selectedCallback = [];
             BBModel.figHandle(hFig);
             BBModel.axesHandle(hAxes);
-            if nargin < 3 || isempty(id) || id < 1
-                obj.m_objId = BBModel.increaseAndGetIdCounter();
+            obj.m_selectedCallbackFcn = selectedFcn;
+            if nargin < 4 || isempty(id) || id < 1
+                obj.m_objId = BBModel.increaseAndGetIdCounter();%create a new id BB
                 obj.drawRect();
             else
-                obj.m_objId = id;  
+                obj.m_objId = id; %create an old id BB 
             end
+            
         end
         
         function id = getObjId(obj)
@@ -57,11 +58,10 @@ classdef BBModel < handle
         end
         
         function callback_rectSelected(obj)
-                funcH = BBModel.selectedCallbackFcn();
-                if isempty(funcH)
+                if isempty(obj.m_selectedCallbackFcn)
                     return;
                 end
-                funcH(obj.m_objId);
+                obj.m_selectedCallbackFcn(obj.m_objId);
         end
      
     end
@@ -77,13 +77,13 @@ classdef BBModel < handle
             nId = psisIdCounter;
         end
         
-        function funcH = selectedCallbackFcn(cbfcn)
-            persistent callbackFcn;
-            if nargin == 1
-                callbackFcn = cbfcn;
-            end
-            funcH = callbackFcn;
-        end
+%         function funcH = selectedCallbackFcn(cbfcn)
+%             persistent callbackFcn;%应该是这里出了问题
+%             if nargin == 1
+%                 callbackFcn = cbfcn;
+%             end
+%             funcH = callbackFcn;
+%         end
         
         function hFig = figHandle(newHFig)
             persistent pstHFig;

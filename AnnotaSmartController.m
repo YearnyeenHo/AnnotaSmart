@@ -15,9 +15,6 @@ classdef AnnotaSmartController < handle
            obj.m_seqObj = seqObj;
            obj.m_curFrame = 0;
            obj.m_bbId = 0;
-           funcH = @obj.callback_rectSelected;
-           BBModel.selectedCallbackFcn(funcH)
-%            obj.m_rectBBMap = containers.Map;
         end
         
         function callback_playOrPauseBtn(obj, src, event)
@@ -39,21 +36,26 @@ classdef AnnotaSmartController < handle
         end
         
         function callback_newAnnotaBtn(obj, src, event)
-%             set(obj.m_viewObj.m_hFig, 'WindowButtonDownFcn', @obj.btnDown);
-%             obj.m_rectVector = [obj.m_rectVector DrawRectHelper(obj.m_viewObj.m_hFig, obj.m_viewObj.m_playerPanel.hAx)];
             if obj.m_curFrame == 0
                 return
             end
-            obj.m_bbId = obj.m_seqObj.addBBToAFrm(obj.m_viewObj.m_hFig, obj.m_viewObj.m_playerPanel.hAx, obj.m_curFrame);
-            
-%             obj.m_rectBBMap(num2str(obj.m_bbId)) = DrawRectHelper(obj.m_viewObj.m_hFig, obj.m_viewObj.m_playerPanel.hAx);
+            funcH = @obj.callback_rectSelected;
+            obj.m_bbId = obj.m_seqObj.addBBToAFrm(obj.m_viewObj.m_hFig, obj.m_viewObj.m_playerPanel.hAx, funcH,obj.m_curFrame);
         end
-        function callback_deleteAnnotaBtn(obj, src, event)    
-
-%                 bbObj = obj.m_seqObj.getBBObj(obj.m_curFrame, obj.m_bbId);
-%                 bbObj.deleteRect();
-                obj.m_seqObj.deleteBBObj(obj.curFrame, obj.m_bbId);
-         
+        
+        function callback_rectSelected(obj, bbId)
+            obj.m_bbId = bbId;
+            obj.m_bbId
+        end
+        
+        function callback_deleteAnnotaBtn(obj, src, event)
+                if  obj.m_bbId == 0
+                    return;
+                end    
+                curFrm = obj.m_curFrame;
+                bbId = obj.m_bbId;
+                obj.m_seqObj.deleteBBObj(curFrm, bbId);  
+                obj.m_bbId = 0;
         end
         
         function callback_detectAnnotaBtn(obj, src, event)
@@ -96,17 +98,13 @@ classdef AnnotaSmartController < handle
              [fileName pathName] = uigetfile('*.txt','open annotation file');
              if flieName == 0
                  return;
-             end
-            
+             end      
         end
         
         function callback_saveAnnotation(obj, src, event)
         
         end
-        
-        
-        
-        
+
         function displayNextFrame(obj)
             numFrames = obj.m_seqObj.getNumFrames();
             obj.m_curFrame = obj.m_curFrame + 1;
@@ -130,17 +128,6 @@ classdef AnnotaSmartController < handle
             end
         end
         
-%         function btnDown(obj, src, event)
-%             obj.m_rectVector = [obj.m_rectVector DrawRectHelper(obj.m_viewObj.m_hFig, obj.m_viewObj.m_playerPanel.hAx)];
-%             set(obj.m_viewObj.m_hFig, 'WindowButtonDownFcn', '');
-%         end
-        
-%         function btnUp(obj, src, event)
-%             set(obj.m_viewObj.m_hFig, 'WindowButtonDownFcn', '');
-%         end
-        function callback_rectSelected(obj, bbId)
-            obj.m_bbId = bbId;
-        end
     end
     
 end

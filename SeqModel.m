@@ -22,7 +22,7 @@ classdef SeqModel < handle
             if isempty(localObj)|| -isvalid(localObj)
                 localObj = SeqModel(fName);
                 obj = localObj;
-            elseif ~strcmp(local.m_frame,fName)
+            elseif ~strcmp(localObj.m_frame,fName)
                 localObj.seqFile.close();            %close seq file
                 localObj.openSeqFile(fName);
                 obj = localObj;
@@ -46,15 +46,15 @@ classdef SeqModel < handle
             frmArray = obj.m_FrameObjArray;
         end
         
-        function bbId = addBBToAFrm(obj, hFig, hAx, curfrmNum, oldBBId)
+        function bbId = addBBToAFrm(obj, hFig, hAx, selectedFcn, curfrmNum, oldBBId)
             curFrmObj = obj.m_FrameObjArray(curfrmNum);
-            if nargin < 5
-                bbObj = BBModel(hFig, hAx);
+            if nargin < 6
+                bbObj = BBModel(hFig, hAx, selectedFcn);%create a new id BB
                 curFrmObj.addObj(bbObj);
                 obj.m_objStartFrmMap(num2str(bbObj.getObjId())) = curfrmNum;
                 obj.m_objEndFrmMap(num2str(bbObj.getObjId())) = curfrmNum;
             else
-                bbObj = BBModel(oldBBId);
+                bbObj = BBModel(hFig, hAx, selectedFcn, oldBBId);%create an old id BB
                 curFrmObj.addObj(bbObj);
                 obj.m_objEndFrmMap(num2str(bbObj.getObjId())) = curfrmNum;
             end
@@ -135,13 +135,13 @@ classdef SeqModel < handle
             obj.m_state = status;
         end
         
-        function deleteBBObj(frmNum, bbId)
+        function deleteBBObj(obj, frmNum, bbId)
           %delete obj from curframe to the endFrm
           endFrmNum = obj.m_objEndFrmMap(num2str(bbId));
             for i = frmNum:endFrmNum
                 frmObj = obj.m_FrameObjArray(i);
                
-                frmObj.removeObj(bbId);%会触发BBModel会自动调用delete吗？调试下就知道
+                frmObj.removeObj(bbId);%会触发BBModel会自动调用delete吗？不会的！
             end
         end
         
