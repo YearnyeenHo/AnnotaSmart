@@ -2,9 +2,12 @@ classdef SeqModel < handle
     properties
         m_seqFile
         m_hImg
+        m_curFrm
         m_FrameObjArray = []
         m_objEndFrmMap
         m_objStartFrmMap
+        m_hFig
+        m_hAx
         m_state = 0
     end
     properties(Constant)
@@ -42,21 +45,33 @@ classdef SeqModel < handle
  
     
     methods
+        function setCurFigAndAxes(obj, hFig, hAx)
+            obj.m_hFig = hFig;
+            obj.m_hAx = hAx;
+        end
+        
         function frmArray = getFrmArray(obj)
             frmArray = obj.m_FrameObjArray;
         end
         
-        function bbId = addBBToAFrm(obj, hFig, hAx, selectedFcn, curfrmNum, oldBBId)
-            curFrmObj = obj.m_FrameObjArray(curfrmNum);
-            if nargin < 6
-                bbObj = BBModel(hFig, hAx, selectedFcn);%create a new id BB
+        function bbId = addBBToAFrm(obj, selectedFcn, frmNum, oldBBId, pos, isdraw)
+            if nargin < 3
+                curFrmObj = obj.m_FrameObjArray(obj.m_curFrm);
+                bbObj = BBModel(obj.m_hFig, obj.m_hAx, selectedFcn);%create a new id BB
                 curFrmObj.addObj(bbObj);
-                obj.m_objStartFrmMap(num2str(bbObj.getObjId())) = curfrmNum;
-                obj.m_objEndFrmMap(num2str(bbObj.getObjId())) = curfrmNum;
+                obj.m_objStartFrmMap(num2str(bbObj.getObjId())) = obj.m_curFrm;
+                obj.m_objEndFrmMap(num2str(bbObj.getObjId())) = obj.m_curFrm;
             else
-                bbObj = BBModel(hFig, hAx, selectedFcn, oldBBId);%create an old id BB
+                curFrmObj = obj.m_FrameObjArray(frmNum);
+                bbObj = BBModel(obj.m_hFig, obj.m_hAx, selectedFcn, oldBBId, pos, isdraw);%create an old id BB
                 curFrmObj.addObj(bbObj);
-                obj.m_objEndFrmMap(num2str(bbObj.getObjId())) = curfrmNum;
+                keyStr = num2str(bbObj.getObjId());
+                if isKey(obj.m_objEndFrmMap, keyStr)
+                    obj.m_objEndFrmMap(keyStr) = frmNum;
+                else
+                    obj.m_objStartFrmMap(keyStr) = frmNum;
+                    obj.m_objEndFrmMap(keyStr) = frmNum;
+                end  
             end
             bbId = bbObj.getObjId();
         end
@@ -65,6 +80,7 @@ classdef SeqModel < handle
             curFrmObj = obj.m_FrameObjArray(frmNum);
             bbObj = curFrmObj.getObj(bbId);
         end
+
         function openSeqFile(obj, fName)
             obj.m_seqFile = seqIo( fName,'r');
             info = obj.m_seqFile.getinfo();
@@ -72,6 +88,9 @@ classdef SeqModel < handle
                 obj.m_FrameObjArray = [obj.m_FrameObjArray FrameModel()];
             end
             obj.m_state = obj.STATUS_STOP;
+            obj.m_curFrm = 0;
+            obj.m_objEndFrmMap = containers.Map();
+            obj.m_objStartFrmMap = containers.Map();
         end
         
         function numFrames = getNumFrames(obj)
@@ -79,13 +98,57 @@ classdef SeqModel < handle
                numFrames = info.numFrames;
         end
         
+        function videoPlay(obj)
+            obj.setStatus(obj.STATUS_PlAY);
+            numFrames = obj.getNumFrames();
+            startFrmNum = obj.m_curFrm + 1;
+            for i = startFrmNum:numFrames 
+                if obj.getStatus() == obj.STATUS_STOP
+                     break;
+                end
+                obj.seqPlay(i-1, i);
+                obj.m_curFrm = i;
+%                 drawnow();          
+            end
+        end
+        
+        function videoPause(obj)
+             obj.setStatus(obj.STATUS_STOP);
+        end
+        
+        function displayNextFrame(obj)
+            numFrames = obj.getNumFrames();
+            obj.m_curFrm = obj.m_curFrm + 1;
+
+            if obj.m_curFrm <= numFrames
+                obj.seqPlay(obj.m_curFrm - 1,obj.m_curFrm);
+%                 drawnow();
+            else
+                obj.m_curFrm = 0;
+            end
+        end
+        
+        function displayLastFrame(obj)
+            obj.m_curFrm = obj.m_curFrm - 1;
+
+            if obj.m_curFrm >= 1
+                obj.seqPlay(obj.m_curFrm + 1, obj.m_curFrm);
+%                 drawnow();
+            else
+                obj.m_curFrm = 0;
+            end
+        end
+
         function seqPlay(obj, lastFrmNum, curFrmNum)
             if isempty(obj.m_seqFile)
                 return;
-            end 
+            end            
+            obj.m_curFrm = curFrmNum;
+            
             img = obj.getImg(curFrmNum);
             obj.setImgHandleForDisplay(img);
             obj.updateAnnotations(lastFrmNum, curFrmNum);
+            drawnow();
         end
         
         function updateAnnotations(obj, lastFrmNum, curFrmNum)
@@ -135,12 +198,12 @@ classdef SeqModel < handle
             obj.m_state = status;
         end
         
-        function deleteBBObj(obj, frmNum, bbId)
-          %delete obj from curframe to the endFrm
-          endFrmNum = obj.m_objEndFrmMap(num2str(bbId));
+        function deleteBBObj(obj, bbId)
+            %delete obj from curframe to the endFrm
+            endFrmNum = obj.m_objEndFrmMap(num2str(bbId));
+            frmNum = obj.m_curFrm;
             for i = frmNum:endFrmNum
                 frmObj = obj.m_FrameObjArray(i);
-               
                 frmObj.removeObj(bbId);%会触发BBModel会自动调用delete吗？不会的！
             end
         end
