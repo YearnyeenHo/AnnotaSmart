@@ -2,13 +2,13 @@
 classdef BBModel < handle
     properties(Access = private)
         m_objId
-        m_pos
+        m_pos %[tlX, tlY, width, height]
         m_drawHelper
         m_selectedCallbackFcn
     end
     
     methods
-        function obj = BBModel(hFig, hAxes, selectedFcn, id)
+        function obj = BBModel(hFig, hAxes, selectedFcn, id, pos, isdraw)
             obj.m_pos = [];
             BBModel.figHandle(hFig);
             BBModel.axesHandle(hAxes);
@@ -17,7 +17,13 @@ classdef BBModel < handle
                 obj.m_objId = BBModel.increaseAndGetIdCounter();%create a new id BB
                 obj.drawRect();
             else
-                obj.m_objId = id; %create an old id BB 
+                obj.m_objId = id; %create an old id BB
+                obj.m_pos = pos;
+                if ~isempty(isdraw)
+                    if isdraw
+                        obj.drawRect();
+                    end
+                end
             end
             
         end

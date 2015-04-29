@@ -9,9 +9,9 @@ classdef MainView < handle
         m_playOrPauseBtn
         m_newAnnotaBtn
         m_deleteAnnotaBtn
-        m_detectAnnotaBtn
-        %m_bbObj
-        %m_frmObj
+
+        m_trackAnnotaBtn 
+        
         m_seqObj
         m_ctrlObj
         m_keyStatus = false(1,2)
@@ -23,12 +23,14 @@ classdef MainView < handle
         function obj = MainView(seqObj)
             obj.m_viewSize = [100, 100, 640, 480];
             obj.m_seqObj = seqObj;
+
             %register callback function
             obj.m_seqObj.addlistener('playStatusChange',@obj.playStatusChange);
             %obj.m_playCanvas.addlistener('updateAnnotations', @obj.updateAnnotations);
             
             obj.m_ctrlObj = obj.makeController();                          %view class is response to generate controller
             obj.buildUI();
+            obj.m_seqObj.setCurFigAndAxes(obj.m_hFig, obj.m_playerPanel.hAx);
             obj.attachToController(obj.m_ctrlObj);                         %register the conponent's callback function
             obj.hotkeyInit();
         end
@@ -68,7 +70,7 @@ classdef MainView < handle
                                 'pos',[btn.startx, btn.starty,  btn.w,  btn.h]);
             obj.m_deleteAnnotaBtn = uicontrol('parent', obj.m_hFig, 'string', 'Delete object',...
                                 'pos',[btn.startx + 75, btn.starty,  btn.w,  btn.h]);
-            obj.m_detectAnnotaBtn = uicontrol('parent', obj.m_hFig, 'string', 'Detect object',...
+            obj.m_trackAnnotaBtn = uicontrol('parent', obj.m_hFig, 'string', 'track object',...
                                 'pos',[btn.startx + 150, btn.starty,  btn.w,  btn.h]);
             obj.m_playOrPauseBtn = uicontrol('parent', obj.m_hFig, 'string', 'Play/Pause',...
                                 'pos',[btn.startx + 225, btn.starty,  btn.w,  btn.h]);
@@ -106,8 +108,9 @@ classdef MainView < handle
             funcH = @controller.callback_deleteAnnotaBtn;
             set(obj.m_deleteAnnotaBtn, 'callback', funcH);
             
-            funcH = @controller.callback_detectAnnotaBtn;
-            set(obj.m_detectAnnotaBtn, 'callback', funcH);
+
+            funcH = @controller.callback_trackAnnotaBtn;
+            set(obj.m_trackAnnotaBtn, 'callback', funcH);
             
             funcH = @controller.keyPressFcn_hotkeyDown;
             set(obj.m_hFig, 'KeyPressFcn', funcH);

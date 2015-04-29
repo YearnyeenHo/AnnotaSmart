@@ -2,63 +2,49 @@ classdef AnnotaSmartController < handle
     properties
         m_viewObj
         m_seqObj
-        m_curFrame
-%         m_rectBBMap
         m_bbId
-        %m_bbObj
-        %m_frameObj
     end
     
     methods
         function obj = AnnotaSmartController(viewObj, seqObj)
            obj.m_viewObj = viewObj;
            obj.m_seqObj = seqObj;
-           obj.m_curFrame = 0;
            obj.m_bbId = 0;
         end
         
         function callback_playOrPauseBtn(obj, src, event)
            if obj.m_seqObj.getStatus() == obj.m_seqObj.STATUS_PlAY 
-               obj.m_seqObj.setStatus(obj.m_seqObj.STATUS_STOP);
+               obj.m_seqObj.videoPause();
            else
-               numFrames = obj.m_seqObj.getNumFrames();
-               obj.m_seqObj.setStatus(obj.m_seqObj.STATUS_PlAY);
-               startFrmNum = obj.m_curFrame + 1;
-               for i = startFrmNum:numFrames 
-                   if obj.m_seqObj.getStatus() == obj.m_seqObj.STATUS_STOP
-                        break;
-                   end
-                   obj.m_seqObj.seqPlay(i-1, i);
-                   obj.m_curFrame = i;
-                   drawnow();          
-               end
+               obj.m_seqObj.videoPlay();
            end
         end
         
         function callback_newAnnotaBtn(obj, src, event)
-            if obj.m_curFrame == 0
+            if obj.m_seqObj.m_curFrm == 0
                 return
             end
             funcH = @obj.callback_rectSelected;
-            obj.m_bbId = obj.m_seqObj.addBBToAFrm(obj.m_viewObj.m_hFig, obj.m_viewObj.m_playerPanel.hAx, funcH,obj.m_curFrame);
+            obj.m_bbId = obj.m_seqObj.addBBToAFrm(funcH);
         end
         
         function callback_rectSelected(obj, bbId)
             obj.m_bbId = bbId;
-            obj.m_bbId
         end
         
         function callback_deleteAnnotaBtn(obj, src, event)
                 if  obj.m_bbId == 0
                     return;
                 end    
-                curFrm = obj.m_curFrame;
-                bbId = obj.m_bbId;
-                obj.m_seqObj.deleteBBObj(curFrm, bbId);  
+                obj.m_seqObj.deleteBBObj(obj.m_bbId);  
                 obj.m_bbId = 0;
         end
         
-        function callback_detectAnnotaBtn(obj, src, event)
+        function callback_trackAnnotaBtn(obj, src, event)
+            funcH = @obj.callback_rectSelected;
+            bbObj = obj.m_seqObj.getBBObj(obj.m_seqObj.m_curFrm, obj.m_bbId);
+            tracker = Tracker(obj.m_seqObj, funcH, obj.m_bbId, bbObj.getPos());
+            tracker.runTracker();
         end
         
         function keyPressFcn_hotkeyDown(obj, src, event)
@@ -73,9 +59,9 @@ classdef AnnotaSmartController < handle
             viewObj.m_keyStatus = (strcmp(key, viewObj.m_keyNames) | viewObj.m_keyStatus);
   
             if viewObj.m_keyStatus(viewObj.m_KEY.RIGHT)
-                obj.displayNextFrame();
+                obj.m_seqObj.displayNextFrame();
             elseif viewObj.m_keyStatus(viewObj.m_KEY.LEFT)
-                obj.displayLastFrame();
+                obj.m_seqObj.displayLastFrame();
             end
         end
         
@@ -103,29 +89,6 @@ classdef AnnotaSmartController < handle
         
         function callback_saveAnnotation(obj, src, event)
         
-        end
-
-        function displayNextFrame(obj)
-            numFrames = obj.m_seqObj.getNumFrames();
-            obj.m_curFrame = obj.m_curFrame + 1;
-
-            if obj.m_curFrame <= numFrames
-               obj.m_seqObj.seqPlay(obj.m_curFrame - 1,obj.m_curFrame);
-               drawnow();
-            else
-               obj.m_curFrame = 0;
-            end
-        end
-        
-        function displayLastFrame(obj)
-            obj.m_curFrame = obj.m_curFrame - 1;
-
-            if obj.m_curFrame >= 1
-                obj.m_seqObj.seqPlay(obj.m_curFrame + 1, obj.m_curFrame);
-                drawnow();
-            else
-                obj.m_curFrame = 0;
-            end
         end
         
     end
