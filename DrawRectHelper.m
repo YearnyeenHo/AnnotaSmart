@@ -13,6 +13,7 @@ classdef DrawRectHelper < handle
     methods
         %加入读入文件，已有pos的话应该即刻设置并调用setPos，直接画出来即可
         function obj = DrawRectHelper(hFig, curAxes, id, rectPos, setPosFunc, selectedFunc)
+            drawhelperNew = 'drawHelper construct!' 
             if isempty(curAxes) || isempty(hFig)
                 error('handle empty');
             end
@@ -24,8 +25,7 @@ classdef DrawRectHelper < handle
                 obj.m_rectPos = rectPos;
             end
             
-            obj.setPosSetCallback(setPosFunc);
-            obj.setSelectedCallback(selectedFunc);
+            obj.setInstanceCallbackFcn(setPosFunc, selectedFunc);
             
             %if get(obj.m_hFig, 'CurrentAxes') ~= curAxes
                 set( obj.m_hFig, 'CurrentAxes', curAxes );
@@ -59,6 +59,11 @@ classdef DrawRectHelper < handle
             %create patch 
 %             color = DrawRectHelper.randColor();
             obj.m_hPatch=patch('FaceColor', color, 'FaceAlpha', 0.1, 'EdgeColor', 'none');
+        end
+        
+        function setInstanceCallbackFcn(obj, setPosFunc, selectedFunc)
+            obj.setPosSetCallback(setPosFunc);
+            obj.setSelectedCallback(selectedFunc);
         end
         
         function setCallBackFcn(obj)
@@ -153,7 +158,6 @@ classdef DrawRectHelper < handle
         %最后drawnow %来update display
         function drag(obj, src, event, anchor, op)
             curPt = obj.getCurrentPt();
-            
             if strcmp(op,'translation')
                 obj.DragToTranslation(curPt);
             else
@@ -165,7 +169,6 @@ classdef DrawRectHelper < handle
             end
             
             obj.updateRectPosAppearance();%setPos
-            drawnow;
         end
         
         function DragToTranslation(obj, curPt)
@@ -218,6 +221,7 @@ classdef DrawRectHelper < handle
         function updateRectPosAppearance(obj)
             obj.setPatch(obj.m_rectPos);
             obj.setBoundaries();
+            drawnow;
         end
         
         function setPatch(obj, rectPos)
@@ -239,6 +243,11 @@ classdef DrawRectHelper < handle
              end
         end
         
+        function setPosAndUpdateAppearance(obj, pos)
+            obj.m_rectPos = pos;
+            obj.updateRectPosAppearance();
+        end
+        
         function deleteFcn(obj, src, event)
             hdls = {obj.m_hLines, obj.m_hPatch, obj.m_posChangeCallback, obj.m_posSetCallback};
             for i = 1:length(hdls)
@@ -250,6 +259,9 @@ classdef DrawRectHelper < handle
              obj.m_hFig = [];
              obj.m_curAxes = [];
              obj.m_rectPos = [];
+        end
+        function delete(obj)
+            obj.deleteFcn()
         end
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%        
         function setPosChangeCallback(obj, func)

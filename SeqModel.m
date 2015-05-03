@@ -9,6 +9,7 @@ classdef SeqModel < handle
         m_hFig
         m_hAx
         m_state = 0
+        m_bbRectMap
     end
     properties(Constant)
         STATUS_STOP = 0;
@@ -50,21 +51,22 @@ classdef SeqModel < handle
             obj.m_hAx = hAx;
         end
         
-        function frmArray = getFrmArray(obj)
-            frmArray = obj.m_FrameObjArray;
-        end
-        
-        function bbId = addBBToAFrm(obj, selectedFcn, frmNum, oldBBId, pos, isdraw)
+        function bbId = addBBToAFrm(obj, selectedFcn, frmNum, oldBBId, pos)
             if nargin < 3
                 curFrmObj = obj.m_FrameObjArray(obj.m_curFrm);
-                bbObj = BBModel(obj.m_hFig, obj.m_hAx, selectedFcn);%create a new id BB
+                bbObj = BBModel(obj.m_hFig, obj.m_hAx, selectedFcn);%create a new id BB in curfrm
                 curFrmObj.addObj(bbObj);
+                
+                isdraw = 1;
+                obj.manageRectMap(bbObj, isdraw);
+                
                 obj.m_objStartFrmMap(num2str(bbObj.getObjId())) = obj.m_curFrm;
                 obj.m_objEndFrmMap(num2str(bbObj.getObjId())) = obj.m_curFrm;
             else
                 curFrmObj = obj.m_FrameObjArray(frmNum);
-                bbObj = BBModel(obj.m_hFig, obj.m_hAx, selectedFcn, oldBBId, pos, isdraw);%create an old id BB
+                bbObj = BBModel(obj.m_hFig, obj.m_hAx, selectedFcn, oldBBId, pos);%create an old id BB
                 curFrmObj.addObj(bbObj);
+%                 obj.manageRectMap(bbObj, isdraw);
                 keyStr = num2str(bbObj.getObjId());
                 if isKey(obj.m_objEndFrmMap, keyStr)
                     obj.m_objEndFrmMap(keyStr) = frmNum;
@@ -80,7 +82,16 @@ classdef SeqModel < handle
             curFrmObj = obj.m_FrameObjArray(frmNum);
             bbObj = curFrmObj.getObj(bbId);
         end
-
+        
+        function bbNum = bbObjNumInCurFrm(obj)
+            frmObj = obj.m_FrameObjArray(obj.m_curFrm);
+            bbNum = frmObj.m_bbMap.Count;
+        end
+        
+        function frmObj = getCurFrmObj(obj)
+            frmObj = obj.m_FrameObjArray(obj.m_curFrm);
+        end
+        
         function openSeqFile(obj, fName)
             obj.m_seqFile = seqIo( fName,'r');
             info = obj.m_seqFile.getinfo();
@@ -91,13 +102,14 @@ classdef SeqModel < handle
             obj.m_curFrm = 0;
             obj.m_objEndFrmMap = containers.Map();
             obj.m_objStartFrmMap = containers.Map();
+            obj.m_bbRectMap = containers.Map();
         end
         
         function numFrames = getNumFrames(obj)
                info = obj.m_seqFile.getinfo();
                numFrames = info.numFrames;
         end
-        
+  
         function videoPlay(obj)
             obj.setStatus(obj.STATUS_PlAY);
             numFrames = obj.getNumFrames();
@@ -117,15 +129,18 @@ classdef SeqModel < handle
         end
         
         function displayNextFrame(obj)
+            dispNextFrm = 'come in dispNext'
+            n =obj.m_curFrm
             numFrames = obj.getNumFrames();
             obj.m_curFrm = obj.m_curFrm + 1;
 
             if obj.m_curFrm <= numFrames
                 obj.seqPlay(obj.m_curFrm - 1,obj.m_curFrm);
-%                 drawnow();
             else
                 obj.m_curFrm = 0;
             end
+            dispNextFrm = 'done dispNext'
+            n
         end
         
         function displayLastFrame(obj)
@@ -133,7 +148,6 @@ classdef SeqModel < handle
 
             if obj.m_curFrm >= 1
                 obj.seqPlay(obj.m_curFrm + 1, obj.m_curFrm);
-%                 drawnow();
             else
                 obj.m_curFrm = 0;
             end
@@ -148,31 +162,101 @@ classdef SeqModel < handle
             img = obj.getImg(curFrmNum);
             obj.setImgHandleForDisplay(img);
             obj.updateAnnotations(lastFrmNum, curFrmNum);
-            drawnow();
+            drawnow();     
         end
-        
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         function updateAnnotations(obj, lastFrmNum, curFrmNum)
-          if  lastFrmNum > 0 && lastFrmNum <= obj.getNumFrames()
-            lastFrmObj = obj.m_FrameObjArray(lastFrmNum);
-            bbObjSet = values(lastFrmObj.m_bbMap);
-            len = length(bbObjSet);
-            if len ~= 0
-                for i = 1:len
-                    bbObjSet{i}.deleteRect();          
+%             updateAnno='want updateAnno?'
+            curFrmObj = obj.m_FrameObjArray(curFrmNum);
+            if curFrmObj.m_bbMap.Count
+                if lastFrmNum > 0 && lastFrmNum <= obj.getNumFrames()
+                    lastFrmObj = obj.m_FrameObjArray(lastFrmNum);
+                    if  lastFrmObj.m_bbMap.Count
+                        keysLast = keys(lastFrmObj.m_bbMap);
+                        lastBBset = values(lastFrmObj.m_bbMap);
+                        updateAnno='ready to kick'
+                        isdraw = 0;
+                        keyDifFlags = isKey(curFrmObj.m_bbMap, keysLast);
+                        for i = 1:length(keysLast)
+                            if ~keyDifFlags(i)
+                            obj.manageRectMap(lastBBset{i},isdraw);
+                            updateAnno='byebye'
+                            end
+                        end
+                    end
+                end
+                curBBset = values(curFrmObj.m_bbMap);
+                isdraw = 1;
+                updateAnno='ready to draw!'
+                for i = 1:length(curBBset)
+                    obj.manageRectMap(curBBset{i}, isdraw);
+                    updateAnno = 'draw next frm'
+                end
+            else
+                if  lastFrmNum > 0 && lastFrmNum <= obj.getNumFrames()
+                    lastFrmObj = obj.m_FrameObjArray(lastFrmNum);
+                    if  lastFrmObj.m_bbMap.Count
+                        lastBBset = values(lastFrmObj.m_bbMap);
+                        isdraw = 0;
+                        updateAnno='curFrm has nothing, ready to kick all in lastFrm'
+                        for i = 1:length(lastBBset)
+                            updateAnno='run All byebye'
+                            obj.manageRectMap(lastBBset{i}, isdraw);
+                            updateAnno='done All byebye'
+                        end
+                    end
                 end
             end
-          end
-          
-           curFrmObj = obj.m_FrameObjArray(curFrmNum);
-           bbObjSet = values(curFrmObj.m_bbMap);
-           len = length(bbObjSet);
-           if len ~= 0 
-               for i = 1:len
-                     bbObjSet{i}.drawRect();
-               end
-           end
         end
         
+        function manageRectMap(obj, bbObj, isdraw)
+            id = bbObj.getObjId;
+            pos = bbObj.getPos();
+            if obj.m_bbRectMap.Count
+                if isdraw
+                    if isKey(obj.m_bbRectMap, num2str(id))
+                        drawhelper = obj.m_bbRectMap(num2str(id));
+                        drawhelper.setPosAndUpdateAppearance(pos)
+                        setPosfunc = @bbObj.setPos;
+                        selfunc = @bbObj.callback_rectSelected;
+                        drawhelper.setInstanceCallbackFcn(setPosfunc, selfunc);
+                        rectMap = 'change pos'
+                    else
+                        hFig = BBModel.figHandle();
+                        hAxe = BBModel.axesHandle();
+                        setPosfunc = @bbObj.setPos;
+                        selfunc = @bbObj.callback_rectSelected;
+                        obj.m_bbRectMap(num2str(id)) = DrawRectHelper(hFig, hAxe, id, pos, setPosfunc, selfunc);% m_pos maybe empty,i.e.create a new one;or pos exist(i.e.draw at onec)
+                        rectMap='new rectHelper'
+                        numObjIn_RectMap=obj.m_bbRectMap.Count
+                    end
+
+                else
+                    if isKey(obj.m_bbRectMap, num2str(id))
+                    %when the rect need not to show,delete it/or you just want to delete the BBobj,so delete the related rect first                       
+                        drawhelper = obj.m_bbRectMap(num2str(id));
+                        drawhelper.delete();
+                        remove(obj.m_bbRectMap, num2str(id));%remove drawhelper that belong to the id
+                        rectMap='All bye~ remove obj from map'
+                        numObjIn_RectMap=obj.m_bbRectMap.Count
+                    end
+                end
+            else
+                if isdraw
+                    hFig = BBModel.figHandle();
+                    hAxe = BBModel.axesHandle();
+                    setPosfunc = @bbObj.setPos;
+                    selfunc = @bbObj.callback_rectSelected;
+                    obj.m_bbRectMap(num2str(id)) = DrawRectHelper(hFig, hAxe, id, pos, setPosfunc, selfunc);% m_pos maybe empty,i.e.create a new one;or pos exist(i.e.draw at onec)
+                    rectMap='new rect'
+                    numObjIn_RectMap=obj.m_bbRectMap.Count
+                else
+                    a = '想bye但是map为空'
+                    numObjIn_RectMap=obj.m_bbRectMap.Count
+                end                
+            end
+        end
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%        
         function setImgHandleForDisplay(obj, img)
             if(isempty(obj.m_hImg)) 
                 %IMAGE(C) displays matrix C as an image.IMAGE returns a handle to an IMAGE object.
@@ -202,9 +286,13 @@ classdef SeqModel < handle
             %delete obj from curframe to the endFrm
             endFrmNum = obj.m_objEndFrmMap(num2str(bbId));
             frmNum = obj.m_curFrm;
+            curFrmObj = obj.m_FrameObjArray(frmNum);
+            bbObj = curFrmObj.getObj(bbId);
+            isdraw = 0;
+            obj.manageRectMap(bbObj, isdraw);
             for i = frmNum:endFrmNum
-                frmObj = obj.m_FrameObjArray(i);
-                frmObj.removeObj(bbId);%会触发BBModel会自动调用delete吗？不会的！
+                frmObj = obj.m_FrameObjArray(i);        
+                frmObj.removeObj(bbId);
             end
         end
         
