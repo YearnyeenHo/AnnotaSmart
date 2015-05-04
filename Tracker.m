@@ -17,18 +17,20 @@ classdef Tracker < handle
     end
     
     methods
-        function obj = Tracker(seqObj, hFcn, bbId, curPos)
+        function obj = Tracker(seqObj, hFcn, bbId, curPos, isMultiTrack, numFrm)
             obj.m_seqObj = seqObj;
             obj.m_startFrm = seqObj.m_curFrm;
             obj.m_funcH = hFcn;
             obj.m_bbId = bbId;
             obj.m_pos = curPos;
             
-            obj.m_numFrm = 25;
+            obj.m_numFrm = numFrm;
             obj.m_tmpSZ = 32;
-            
-            obj.m_numObj = obj.m_seqObj.bbObjNumInCurFrm();
-           
+            if isMultiTrack
+                obj.m_numObj = obj.m_seqObj.bbObjNumInCurFrm();
+            else
+                 obj.m_numObj = 1;
+            end
             obj.m_opt = struct('numsample', 600, 'condenssig',1, 'posNum',1, 'negNum',30, ...
         'tmplsize', [32,32], 'batchsize',15,'projNum',10, 'num_tmpl',5, 'r',1.5, 'posSig',[2,2,.01,.02,.002,.001]);
             obj.m_opt.affsig = [5,5,.01,0, 0, 0]; 
@@ -48,20 +50,25 @@ classdef Tracker < handle
         end
         
         function pSmplsInfo = getPSmplsInfo(obj)
-            frmObj = obj.m_seqObj.getCurFrmObj();
-   
-            bbobjSet = values(frmObj.m_bbMap);
-            numObj = length(bbobjSet);
-            
-            id = zeros(numObj);
-            param = cell(numObj,1);
-            pSmplsInfo.id = id;
-            pSmplsInfo.param = param;
-            for i = 1:numObj
-                bbObj = bbobjSet{i};
-                pSmplsInfo.id(i) = bbObj.getObjId();
-                pSmplsInfo.param{i} = obj.genParam(bbObj.getPos());
-            end 
+            if obj.m_numObj > 1
+                frmObj = obj.m_seqObj.getCurFrmObj();
+
+                bbobjSet = values(frmObj.m_bbMap);
+                numObj = length(bbobjSet);
+
+                id = zeros(numObj);
+                param = cell(numObj,1);
+                pSmplsInfo.id = id;
+                pSmplsInfo.param = param;
+                for i = 1:numObj
+                    bbObj = bbobjSet{i};
+                    pSmplsInfo.id(i) = bbObj.getObjId();
+                    pSmplsInfo.param{i} = obj.genParam(bbObj.getPos());
+                end 
+            else
+                pSmplsInfo.id(1) = obj.m_bbId;
+                pSmplsInfo.param{1} = obj.genParam(obj.m_pos);
+            end
         end
 
         function [centerX, centerY, width, height] = getPosInfo(obj, pos) 
@@ -79,15 +86,7 @@ classdef Tracker < handle
             opt = obj.m_opt;
             
             pSmplsInfo = obj.getPSmplsInfo();
-            
-%             %Init space  
-%             tmpl.mean = zeros(opt.tmplsize(1), opt.tmplsize(2), opt.num_tmpl);%32, 32, 5;
-%             tmpl.mean_pos = zeros(opt.tmplsize(1), opt.tmplsize(2), opt.num_tmpl);%32, 32, 5
-%             tmpl.template = zeros(opt.projNum, opt.num_tmpl);%projNum=10, 5
-%             tmpl.W = zeros(opt.tmplsize(1)*opt.tmplsize(2), opt.projNum, opt.num_tmpl);%32*32, 10, 5
-%             tmpl.sigma = zeros(opt.tmplsize(1)*opt.tmplsize(2), opt.num_tmpl);%32*32, 5
-%             tmpl = repmat(tmpl, numP, 1);
-            
+       
             %Init space
             curTmpl.mean = zeros(opt.tmplsize(1), opt.tmplsize(2), opt.num_tmpl);%32, 32, 5;num_tmpl是5？根据，模版大小生成全零矩阵，并且一共有5个
             curTmpl.template = zeros(opt.projNum, opt.num_tmpl);%projNum=10, 5
@@ -96,11 +95,6 @@ classdef Tracker < handle
             curTmpl.mean_pos = zeros(opt.tmplsize(1), opt.tmplsize(2), opt.num_tmpl);
             curTmpl = repmat(curTmpl,numP,1);
            
-%             tmplOrigin.mean = zeros(opt.tmplsize(1), opt.tmplsize(2), opt.num_tmpl);%32, 32, 5;num_tmpl是5？根据，模版大小生成全零矩阵，并且一共有5个
-%             tmplOrigin.template = zeros(opt.projNum, opt.num_tmpl);%projNum=10, 5
-%             tmplOrigin.W = zeros(opt.tmplsize(1)*opt.tmplsize(2), opt.projNum, opt.num_tmpl);%32*32, 10, 5
-%             tmplOrigin.sigma = zeros(opt.tmplsize(1)*opt.tmplsize(2), opt.num_tmpl);%32*32, 5
-%             tmplOrigin = repmat(tmplOrigin,numP,1);
             tmplOrigin = cell(numP,1);
             for i = 1:numP
                 [positiveSample, ~] = SelectPos(imgI, pSmplsInfo.param{i}, opt);%对第一帧操作，[正样本， 正样本位置]
@@ -113,38 +107,8 @@ classdef Tracker < handle
                 curTmpl(i).W(:,:,1) = tmpl.W;
                 curTmpl(i).sigma(:,1) = tmpl.sigma;   
                 tmplOrigin{i} = tmpl;
-            end
-
-%             %Init space
-%             curTmpl.mean = zeros(obj.m_opt.tmplsize(1), obj.m_opt.tmplsize(2), obj.m_opt.num_tmpl);%32, 32, 5;num_tmpl是5？根据，模版大小生成全零矩阵，并且一共有5个
-%             curTmpl.mean_pos = zeros(obj.m_opt.tmplsize(1), obj.m_opt.tmplsize(2), obj.m_opt.num_tmpl);%32, 32, 5
-% 
-%             curTmpl.template = zeros(obj.m_opt.projNum, obj.m_opt.num_tmpl);%projNum=10, 5
-%             curTmpl.W = zeros(obj.m_opt.tmplsize(1)*obj.m_opt.tmplsize(2), obj.m_opt.projNum, obj.m_opt.num_tmpl);%32*32, 10, 5
-%             curTmpl.sigma = zeros(obj.m_opt.tmplsize(1)*obj.m_opt.tmplsize(2), obj.m_opt.num_tmpl);%32*32, 5
-%             
-%             curTmpl = repmat(curTmpl,numP,1);
-%             
-%             for i = 1:numP
-%                
-%                 %assignment
-%                 curTmpl(i).mean(:,:,1) = tmpl(i).mean;
-%                 curTmpl(i).mean_pos(:,:,1) = positiveSample(:,:, i);
-%                 curTmpl(i).template(:,1) = tmpl(i).template;
-%                 curTmpl(i).W(:,:,1) = tmpl(i).W;
-%                 curTmpl(i).sigma(:,1) = tmpl(i).sigma;    
-%             end
+            end       
             
-%             param = [];
-%             param.est = pSmplsInfo.param{}';
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Init space %%%%%%%%%%%%%%%%%%%%%%%%%
-%             param.mini_t_idx = [];
-%             param.mini_t_dis = [];   
-%             param.max_t_idx = [];
-%             param.max_t_dis = [];
-%             param.est = zeros(2,3);
-%             param.wimg = zeros(32,32);       
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%            
             params = cell(numP,1);
             for i = 1:numP
             params{i}.est = pSmplsInfo.param{i}';
@@ -207,7 +171,7 @@ classdef Tracker < handle
                     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% show the result %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%    
     %                 paramRes = [paramRes param.est]; 
                     pos =  obj.getPosFromParam(opt.tmplsize, params{i}.est);   
-                    obj.m_seqObj.addBBToAFrm(obj.m_funcH, frmIndex, pSmplsInfo.id(i), pos);
+                    obj.m_seqObj.addBBToAFrm(obj.m_funcH, frmIndex, pSmplsInfo.id(i), pos, 0);
                 end
                 obj.m_seqObj.seqPlay(frmIndex - 1,frmIndex);
             end

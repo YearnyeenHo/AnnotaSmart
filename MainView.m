@@ -9,8 +9,11 @@ classdef MainView < handle
         m_playOrPauseBtn
         m_newAnnotaBtn
         m_deleteAnnotaBtn
-
+        
         m_trackAnnotaBtn 
+        m_trackCheckBox
+        m_trackFrmNumTitle
+        m_trackFrmNumEdit
         
         m_seqObj
         m_ctrlObj
@@ -72,8 +75,14 @@ classdef MainView < handle
                                 'pos',[btn.startx + 75, btn.starty,  btn.w,  btn.h]);
             obj.m_trackAnnotaBtn = uicontrol('parent', obj.m_hFig, 'string', 'track object',...
                                 'pos',[btn.startx + 150, btn.starty,  btn.w,  btn.h]);
+            obj.m_trackCheckBox = uicontrol('parent', obj.m_hFig, 'string', 'multiple target',...
+                                'Style','checkbox','pos',[btn.startx + 225, btn.starty,  btn.w + 30,  btn.h]); 
+            obj.m_trackFrmNumTitle = uicontrol('parent', obj.m_hFig, 'string', 'frames to track :',...
+                                'Style','text','pos',[btn.startx + 325, btn.starty,  btn.w + 30,  btn.h]); 
+            obj.m_trackFrmNumEdit = uicontrol('parent', obj.m_hFig, 'string', '20',...
+                                'Style','edit','pos',[btn.startx + 360, btn.starty,  btn.w - 50,  btn.h - 15]);        
             obj.m_playOrPauseBtn = uicontrol('parent', obj.m_hFig, 'string', 'Play/Pause',...
-                                'pos',[btn.startx + 225, btn.starty,  btn.w,  btn.h]);
+                                'pos',[btn.startx + 435, btn.starty,  btn.w,  btn.h]);
             
             
             %panel
@@ -111,6 +120,12 @@ classdef MainView < handle
 
             funcH = @controller.callback_trackAnnotaBtn;
             set(obj.m_trackAnnotaBtn, 'callback', funcH);
+            
+            funcH = @controller.callback_setTrackFrmNum;
+            set(obj.m_trackFrmNumEdit, 'callback', funcH);
+            
+            funcH = @controller.callback_setCheckBox;
+            set(obj.m_trackCheckBox, 'callback',funcH);
             
             funcH = @controller.keyPressFcn_hotkeyDown;
             set(obj.m_hFig, 'KeyPressFcn', funcH);
