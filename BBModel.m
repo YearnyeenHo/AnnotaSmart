@@ -13,15 +13,25 @@ classdef BBModel < handle
             BBModel.figHandle(hFig);
             BBModel.axesHandle(hAxes);
             obj.m_selectedCallbackFcn = selectedFcn;
-            if nargin < 4 || isempty(id) || id < 1
-                obj.m_objId = BBModel.increaseAndGetIdCounter();%create a new id BB
+            if nargin < 4 || isempty(id)
+                obj.m_objId = BBModel.increaseAndGetIdCounter();%create a new id BB  
                 obj.drawRect();
             else
-                obj.m_objId = id; %create an old id BB
-                obj.m_pos = pos;
-                if ~isempty(isdraw)
-                    if isdraw
-                        obj.drawRect();
+                if id < 1
+                    obj.m_pos = pos;
+                    obj.m_objId = BBModel.increaseAndGetIdCounter();%create a new id BB  
+                    if ~isempty(isdraw)
+                        if isdraw
+                            obj.drawRect();
+                        end
+                    end
+                else
+                    obj.m_objId = id; %create an old id BB
+                    obj.m_pos = pos;
+                    if ~isempty(isdraw)
+                        if isdraw
+                            obj.drawRect();
+                        end
                     end
                 end
             end
@@ -53,14 +63,13 @@ classdef BBModel < handle
             %delete the rect on the frame
             %delete the graphic handle when it is not visible
             if ~isempty(obj.m_drawHelper)
-                obj.m_drawHelper.deleteFcn();
-                
                 obj.m_drawHelper.delete();
                 obj.m_drawHelper = [];
             end
         end
+        
         function delete(obj)
-            obj.deleteRect();
+             obj.deleteRect();
         end
         
         function callback_rectSelected(obj)
@@ -107,7 +116,5 @@ classdef BBModel < handle
             hAxes = pstHAxes;
         end
     end
-   
- 
-    
+     
 end

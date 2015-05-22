@@ -5,15 +5,40 @@ classdef AnnotaSmartController < handle
         m_bbId
         m_isMultiTrack
         m_numFrmToTrack
+        m_fps
+        
+        m_modelOrigins %cell
+        m_modelSets % structure array
     end
     
     methods
-        function obj = AnnotaSmartController(viewObj, seqObj)
+        function obj = AnnotaSmartController(viewObj)
            obj.m_viewObj = viewObj;
-           obj.m_seqObj = seqObj;
+           obj.m_viewObj.enableBtn('off');
+           obj.m_seqObj = [];
            obj.m_bbId = 0;
            obj.m_isMultiTrack = 0;
            obj.m_numFrmToTrack = 20;
+           obj.m_fps = -1;
+           obj.m_modelOrigins = {};
+           obj.m_modelSets = [];
+        end
+        
+        function deleteAnnotation(obj)
+                if  obj.m_bbId == 0
+                    return;
+                end    
+                obj.m_seqObj.deleteBBObj(obj.m_bbId);  
+                obj.m_bbId = 0;
+        end
+        
+        function pasteAnnotation(obj)
+            frmNum = obj.m_seqObj.m_curFrm;
+            if obj.m_bbId == 0|| frmNum == 0
+                return;
+            end
+            funcH = @obj.callback_rectSelected;
+            obj.m_seqObj.pasteAnnotation(funcH, obj.m_bbId);
         end
         
         function callback_playOrPauseBtn(obj, src, event)
@@ -37,18 +62,34 @@ classdef AnnotaSmartController < handle
         end
         
         function callback_deleteAnnotaBtn(obj, src, event)
-                if  obj.m_bbId == 0
-                    return;
-                end    
-                obj.m_seqObj.deleteBBObj(obj.m_bbId);  
-                obj.m_bbId = 0;
+                obj.deleteAnnotation();
+        end
+        
+        function callback_detectAnnotaBtn(obj, src, event)
+%             if length(obj.m_modelOrigins) >= 3
+                detector = Detector(obj, obj.m_seqObj);
+                detector.runDetect();
+%             end
         end
         
         function callback_trackAnnotaBtn(obj, src, event)
+            frmObj = obj.m_seqObj.getCurFrmObj();
+            if ~obj.m_bbId || ~isKey(frmObj.m_bbMap, num2str(obj.m_bbId))
+                return
+            end
+                
+            obj.m_viewObj.enableBtn('off');
             funcH = @obj.callback_rectSelected;
             bbObj = obj.m_seqObj.getBBObj(obj.m_seqObj.m_curFrm, obj.m_bbId);
             tracker = Tracker(obj.m_seqObj, funcH, obj.m_bbId, bbObj.getPos(), obj.m_isMultiTrack, obj.m_numFrmToTrack);
             tracker.runTracker();
+            obj.m_viewObj.enableBtn('on');
+            len = length(obj.m_modelOrigins);
+            tmpLen = length(tracker.m_tmplOrigins);
+            for i = 1:tmpLen
+                obj.m_modelOrigins{len + i} = tracker.m_tmplOrigins{i}; 
+            end
+            obj.m_modelSets = [obj.m_modelSets tracker.m_tmplSets];
         end
         
         function callback_setCheckBox(obj, src, event)
@@ -64,6 +105,9 @@ classdef AnnotaSmartController < handle
         end
         
         function keyPressFcn_hotkeyDown(obj, src, event)
+           if isempty(obj.m_seqObj.m_seqFile)
+               return;
+           end
             viewObj = obj.m_viewObj;    
             key = get(viewObj.m_hFig,'CurrentKey');
             % e.g.,KeyNames = {'w', 'a','s', 'd', 'j', 'k'};
@@ -73,11 +117,15 @@ classdef AnnotaSmartController < handle
             % strcmp(key, KeyNames) -> [0, 0, 1, 0, 0, 0, 0]
             % strcmp(key, KeyNames) | KeyStatus -> [0, 0, 1, 1, 1, 0]
             viewObj.m_keyStatus = (strcmp(key, viewObj.m_keyNames) | viewObj.m_keyStatus);
-  
+            
             if viewObj.m_keyStatus(viewObj.m_KEY.RIGHT)
                 obj.m_seqObj.displayNextFrame();
             elseif viewObj.m_keyStatus(viewObj.m_KEY.LEFT)
                 obj.m_seqObj.displayLastFrame();
+            elseif viewObj.m_keyStatus(viewObj.m_KEY.DEL)
+                obj.deleteAnnotation();
+            elseif viewObj.m_keyStatus(viewObj.m_KEY.V)
+                obj.pasteAnnotation();
             end
         end
         
@@ -93,20 +141,35 @@ classdef AnnotaSmartController < handle
         end
   
         function callback_openVideo(obj, src, event)
-            
+            obj.m_viewObj.enableBtn('off');
+            [fileName, pathName] = uigetfile('*.seq;*.avi','open annotation file');
+            if fileName == 0
+                return
+            end
+            filePath = [pathName fileName];
+            obj.m_seqObj = SeqModel.getSeqFileInstance(filePath);
+            obj.m_seqObj.setCurFigAndAxes(obj.m_viewObj.m_hFig, obj.m_viewObj.m_playerPanel.hAx);
+            obj.m_viewObj.enableBtn('on');
         end
         
         function callback_openAnnotation(obj, src, event)
-             [fileName pathName] = uigetfile('*.txt','open annotation file');
-             if flieName == 0
+             [fileName, pathName] = uigetfile('*.txt','open annotation file');
+             if fileName == 0
                  return;
-             end      
+             end  
+             funcH = @obj.callback_rectSelected;
+             fileFullName = [pathName fileName];
+             obj.m_seqObj.LoadAnnotaFile(funcH, fileFullName)
         end
         
         function callback_saveAnnotation(obj, src, event)
-        
+             [fileName, pathName]=uiputfile('*.txt','Select Annotation');
+             if fileName == 0
+                 return;
+             end
+              fileFullName = [pathName fileName];
+              obj.m_seqObj.saveAnnotaFile(fileFullName);
         end
-        
     end
     
 end

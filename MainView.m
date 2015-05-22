@@ -4,38 +4,38 @@ classdef MainView < handle
         m_hFig
         m_topMenu
         m_playerPanel
-        
-        m_playCanvas
+       
         m_playOrPauseBtn
+        m_fpsTitle
+        m_fpsEdit
+        
         m_newAnnotaBtn
         m_deleteAnnotaBtn
+        
+        m_detAnnotaBtn
         
         m_trackAnnotaBtn 
         m_trackCheckBox
         m_trackFrmNumTitle
         m_trackFrmNumEdit
         
-        m_seqObj
+%         m_seqObj
         m_ctrlObj
-        m_keyStatus = false(1,2)
-        m_keyNames = {'rightarrow','leftarrow'}
+        m_keyStatus = false(1,4)
+        m_keyNames = {'rightarrow','leftarrow','d','v'}
         m_KEY
     end
     
     methods
-        function obj = MainView(seqObj)
+        function obj = MainView()
             obj.m_viewSize = [100, 100, 640, 480];
-            obj.m_seqObj = seqObj;
-
-            %register callback function
-            obj.m_seqObj.addlistener('playStatusChange',@obj.playStatusChange);
-            %obj.m_playCanvas.addlistener('updateAnnotations', @obj.updateAnnotations);
-            
-            obj.m_ctrlObj = obj.makeController();                          %view class is response to generate controller
+%             obj.m_seqObj = seqObj;  
             obj.buildUI();
-            obj.m_seqObj.setCurFigAndAxes(obj.m_hFig, obj.m_playerPanel.hAx);
-            obj.attachToController(obj.m_ctrlObj);                         %register the conponent's callback function
             obj.hotkeyInit();
+            obj.m_ctrlObj = obj.makeController();                          %view class is response to generate controller
+%             obj.m_seqObj.setCurFigAndAxes(obj.m_hFig, obj.m_playerPanel.hAx);
+            obj.attachToController(obj.m_ctrlObj);                         %register the conponent's callback function
+            
         end
        
         function buildUI(obj)
@@ -73,17 +73,22 @@ classdef MainView < handle
                                 'pos',[btn.startx, btn.starty,  btn.w,  btn.h]);
             obj.m_deleteAnnotaBtn = uicontrol('parent', obj.m_hFig, 'string', 'Delete object',...
                                 'pos',[btn.startx + 75, btn.starty,  btn.w,  btn.h]);
-            obj.m_trackAnnotaBtn = uicontrol('parent', obj.m_hFig, 'string', 'track object',...
-                                'pos',[btn.startx + 150, btn.starty,  btn.w,  btn.h]);
+            obj.m_detAnnotaBtn = uicontrol('parent', obj.m_hFig, 'string', 'detect',...
+                                'pos',[btn.startx + 150, btn.starty,  btn.w - 35,  btn.h]);
+            obj.m_trackAnnotaBtn = uicontrol('parent', obj.m_hFig, 'string', 'track',...
+                                'pos',[btn.startx + 190, btn.starty,  btn.w - 35,  btn.h]);                
             obj.m_trackCheckBox = uicontrol('parent', obj.m_hFig, 'string', 'multiple target',...
-                                'Style','checkbox','pos',[btn.startx + 225, btn.starty,  btn.w + 30,  btn.h]); 
+                                'Style','checkbox','pos',[btn.startx + 230, btn.starty,  btn.w + 30,  btn.h]); 
             obj.m_trackFrmNumTitle = uicontrol('parent', obj.m_hFig, 'string', 'frames to track :',...
-                                'Style','text','pos',[btn.startx + 325, btn.starty,  btn.w + 30,  btn.h]); 
+                                'Style','text','pos',[btn.startx + 330, btn.starty,  btn.w + 30,  btn.h]); 
             obj.m_trackFrmNumEdit = uicontrol('parent', obj.m_hFig, 'string', '20',...
-                                'Style','edit','pos',[btn.startx + 360, btn.starty,  btn.w - 50,  btn.h - 15]);        
+                                'Style','edit','pos',[btn.startx + 365, btn.starty,  btn.w - 50,  btn.h - 15]);        
             obj.m_playOrPauseBtn = uicontrol('parent', obj.m_hFig, 'string', 'Play/Pause',...
                                 'pos',[btn.startx + 435, btn.starty,  btn.w,  btn.h]);
-            
+            obj.m_fpsTitle = uicontrol('parent', obj.m_hFig, 'string', 'fps : ',...
+                                'Style','text','pos',[btn.startx + 510, btn.starty,  btn.w - 20,  btn.h]); 
+            obj.m_fpsEdit = uicontrol('parent', obj.m_hFig, 'string', '100',...
+                                'Style','edit','pos',[btn.startx + 520, btn.starty,  btn.w - 40,  btn.h - 15]); 
             
             %panel
             % obj.m_playerPanel.h = uipanel('parent',obj.m_hFig,'BackgroundColor','black','Position', [.25 .1 .67 .67]);
@@ -91,20 +96,38 @@ classdef MainView < handle
 
       
         end
+        
+        function enableBtn(obj, op)
+            hs = [obj.m_playOrPauseBtn, obj.m_newAnnotaBtn,...
+                obj.m_deleteAnnotaBtn,obj.m_trackAnnotaBtn, obj.m_detAnnotaBtn];
+            set(hs,'Enable', op);     
+        end
         function hotkeyInit(obj)
             obj.m_KEY.RIGHT = 1;
             obj.m_KEY.LEFT = 2;
+            obj.m_KEY.DEL = 3;
+            obj.m_KEY.V = 4;
         end
         
-        %update the annotations in the frame
-        function updateAnnotations(obj)
-        end
-        function playStatusChange(obj)
-        end
         %View is responsable for generating its controller
         function ctrlObj = makeController(obj)
-            ctrlObj = AnnotaSmartController(obj, obj.m_seqObj);
+            ctrlObj = AnnotaSmartController(obj);
         end
+        
+        function resizeFigFcn(obj, src, even)
+            figSz = get(obj.m_hFig, 'position');
+            ui = [obj.m_playOrPauseBtn,...
+            obj.m_newAnnotaBtn, obj.m_deleteAnnotaBtn,...
+            obj.m_trackAnnotaBtn, obj.m_trackCheckBox,...
+            obj.m_trackFrmNumTitle, obj.m_trackFrmNumEdit,...
+            obj.m_fpsTitle, obj.m_fpsEdit, obj.m_detAnnotaBtn];
+            for i = 1:length(ui)
+                posOld = get(ui(i),'pos');
+                set(ui(i), 'position',[posOld(1), figSz(4)*0.93,...
+                    posOld(3),posOld(4)]);
+            end
+        end
+   
         %after controller'construction
         function attachToController(obj, controller)
             funcH = @controller.callback_playOrPauseBtn;
@@ -141,7 +164,12 @@ classdef MainView < handle
 
             funcH = @controller.callback_saveAnnotation;
             set(obj.m_topMenu.hSaveAnnotation, 'callback', funcH);
-
+            
+            funcH = @controller.callback_detectAnnotaBtn;
+            set(obj.m_detAnnotaBtn, 'callback', funcH);
+            
+            funcH = @obj.resizeFigFcn;
+            set(obj.m_hFig,'ResizeFcn', funcH);
 %             funcH = @controller.callback_detectAnnotaBtn;
 %             set(obj.m_topMenu.hNewAnnotationFile, 'callback', funcH);          
         end
