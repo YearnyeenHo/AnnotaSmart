@@ -8,6 +8,8 @@ classdef MainView < handle
         m_playOrPauseBtn
         m_fpsTitle
         m_fpsEdit
+        m_frames
+        m_totalFrames
         
         m_newAnnotaBtn
         m_deleteAnnotaBtn
@@ -88,8 +90,11 @@ classdef MainView < handle
             obj.m_fpsTitle = uicontrol('parent', obj.m_hFig, 'string', 'fps : ',...
                                 'Style','text','pos',[btn.startx + 510, btn.starty,  btn.w - 20,  btn.h]); 
             obj.m_fpsEdit = uicontrol('parent', obj.m_hFig, 'string', '100',...
-                                'Style','edit','pos',[btn.startx + 520, btn.starty,  btn.w - 40,  btn.h - 15]); 
-            
+                                'Style','edit','pos',[btn.startx + 520, btn.starty,  btn.w - 40,  btn.h - 15]);                
+            obj.m_frames = uicontrol('parent', obj.m_hFig, 'string', '',...
+                                'Style','edit','pos',[btn.startx + 560, btn.starty,  btn.w - 50,  btn.h - 15], 'HorizontalAlignment','Left'); 
+            obj.m_totalFrames = uicontrol('parent', obj.m_hFig, 'string', '',...
+                                'Style','text','pos',[btn.startx + 580, btn.starty,  btn.w - 30,  btn.h - 15], 'HorizontalAlignment', 'Left'); 
             %panel
             % obj.m_playerPanel.h = uipanel('parent',obj.m_hFig,'BackgroundColor','black','Position', [.25 .1 .67 .67]);
              obj.m_playerPanel.hAx = axes('parent', obj.m_hFig, 'Position', [.10 .1 .80 .80]);
@@ -173,6 +178,8 @@ classdef MainView < handle
 %             funcH = @controller.callback_detectAnnotaBtn;
 %             set(obj.m_topMenu.hNewAnnotationFile, 'callback', funcH);          
         end
-        
+        function delete()
+            
+        end
     end
 end

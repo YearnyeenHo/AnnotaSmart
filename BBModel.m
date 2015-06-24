@@ -78,7 +78,7 @@ classdef BBModel < handle
                 end
                 obj.m_selectedCallbackFcn(obj.m_objId);
         end
-     
+        
     end
   
     methods(Static)

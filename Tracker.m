@@ -3,6 +3,7 @@ classdef Tracker < handle
         m_seqObj
         m_startFrm 
         m_funcH
+        
         m_bbId
         m_pos
         
@@ -11,9 +12,9 @@ classdef Tracker < handle
         m_numObj
         m_param
         m_opt
-%         m_tmpl
-%         m_tmplOrigin
-%         m_template
+
+        m_tmplOrigins
+        m_tmplSets
     end
     
     methods
@@ -29,9 +30,10 @@ classdef Tracker < handle
             if isMultiTrack
                 obj.m_numObj = obj.m_seqObj.bbObjNumInCurFrm();
             else
-                 obj.m_numObj = 1;
+                 obj.m_numObj = 1;     
             end
-            obj.m_opt = struct('numsample', 600, 'condenssig',1, 'posNum',1, 'negNum',30, ...
+            
+            obj.m_opt = struct('numsample', 50, 'condenssig',1, 'posNum',1, 'negNum',30, ...
         'tmplsize', [32,32], 'batchsize',15,'projNum',10, 'num_tmpl',5, 'r',1.5, 'posSig',[2,2,.01,.02,.002,.001]);
             obj.m_opt.affsig = [5,5,.01,0, 0, 0]; 
 
@@ -88,7 +90,7 @@ classdef Tracker < handle
             pSmplsInfo = obj.getPSmplsInfo();
        
             %Init space
-            curTmpl.mean = zeros(opt.tmplsize(1), opt.tmplsize(2), opt.num_tmpl);%32, 32, 5;num_tmpl是5？根据，模版大小生成全零矩阵，并且一共有5个
+            curTmpl.mean = zeros(opt.tmplsize(1), opt.tmplsize(2), opt.num_tmpl);
             curTmpl.template = zeros(opt.projNum, opt.num_tmpl);%projNum=10, 5
             curTmpl.W = zeros(opt.tmplsize(1)*opt.tmplsize(2), opt.projNum, opt.num_tmpl);%32*32, 10, 5
             curTmpl.sigma = zeros(opt.tmplsize(1)*opt.tmplsize(2), opt.num_tmpl);%32*32, 5
@@ -96,14 +98,15 @@ classdef Tracker < handle
             curTmpl = repmat(curTmpl,numP,1);
            
             tmplOrigin = cell(numP,1);
+            %first frame
             for i = 1:numP
-                [positiveSample, ~] = SelectPos(imgI, pSmplsInfo.param{i}, opt);%对第一帧操作，[正样本， 正样本位置]
-                [negSample, ~] = SelectNeg(imgI, pSmplsInfo.param{i}, opt);%选取负样本
-                tmpl = PLS_sub(positiveSample, negSample, opt);%正负样本,PLS子空间   
-                %assignment
+                [positiveSample, ~] = SelectPos(imgI, pSmplsInfo.param{i}, opt);
+                [negSample, ~] = SelectNeg(imgI, pSmplsInfo.param{i}, opt);
+                tmpl = PLS_sub(positiveSample, negSample, opt);%object representation model
+                %assignment，：，1）表示model set中的第一个元素，就是gt
                 curTmpl(i).mean(:,:,1) = tmpl.mean;
-                curTmpl(i).mean_pos(:,:,1) = positiveSample;
-                curTmpl(i).template(:,1) = tmpl.template;
+                curTmpl(i).mean_pos(:,:,1) = positiveSample;%32*32intensity matrix
+                curTmpl(i).template(:,1) = tmpl.template;%reshape the intensity matrix in to a row,then use the PLS weigth(cloumn vector) times the row,an get a matrix
                 curTmpl(i).W(:,:,1) = tmpl.W;
                 curTmpl(i).sigma(:,1) = tmpl.sigma;   
                 tmplOrigin{i} = tmpl;
@@ -113,33 +116,39 @@ classdef Tracker < handle
             for i = 1:numP
             params{i}.est = pSmplsInfo.param{i}';
             end
-            f = 0.9;
-            
+            f = 0.3;
+            playFlag = 0;
+            %other frames
             for frmIndex = obj.m_startFrm+1 : obj.m_startFrm+obj.m_numFrm
                 %read new img
                 img = obj.m_seqObj.getImg(frmIndex); 
                 imgI = rgb2gray(img); 
                 imgI =  double(imgI)/256;
+                stopIdArray = zeros(obj.m_numObj);
+                %for each obj
                 for i = 1:numP
-%                     param = [];
-%                     param.est = pSmplsInfo.param{i}';
+                    if stopIdArray(i) == 1 
+                        continue;
+                    end
+                    %track obj
                     params{i} = est_condens_PLS_Multi(imgI, curTmpl(i), params{i}, opt);% first stage
                     tmp = estwarp_condens_PLS(imgI, tmplOrigin{i}, params{i}, opt);   % second stage
+                    %already get the result
                     params{i}.est = tmp.est;
                     params{i}.wimg = tmp.wimg;
 
                     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% update %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
 
-                    tmp = curTmpl(i).template;
-                    tmp(:,sum(abs(curTmpl(i).template),1)==0) = [];
+                    tmp = curTmpl(i).template;%10 x 5；curTmpl是model set，curTmpl(i),是指，第i个物体gt对应的model set（因为改成多目标跟踪，而每个目标都会各自维护一个model set，以及对应ground truth）
+                    tmp(:,sum(abs(curTmpl(i).template),1)==0) = [];%10 x 1     sum为零的那些列会被删除，abs的sum为零就是6个元素都为零，就是要删除那些没用的model？
 
                     num_tmpl = size(tmp,2);
                     min_tmplate = curTmpl(i).template(:,params{i}.mini_t_idx);
 
-                    if params{i}.mini_t_dis < sum(min_tmplate.^2)/5          
-
+                    if params{i}.mini_t_dis < sum(min_tmplate.^2)/5        %less than threshold,update the coresponding model          
+                         %使用遗忘因子更新模型
                         curTmpl(i).mean_pos(:,:,params{i}.mini_t_idx) = curTmpl(i).mean_pos(:,:,params{i}.mini_t_idx)*f + (1-f)*params{i}.wimg;
-
+                        %每次都要重新选择negative
                         [negSample,~] = SelectNeg(imgI, params{i}.est, opt);
                         tmp_t = PLS_sub(curTmpl(i).mean_pos(:,:,params{i}.mini_t_idx), negSample, opt);
 
@@ -147,140 +156,66 @@ classdef Tracker < handle
                         curTmpl(i).template(:,params{i}.mini_t_idx) = tmp_t.template;
                         curTmpl(i).W(:,:,params{i}.mini_t_idx) = tmp_t.W;
                         curTmpl(i).sigma(:,params{i}.mini_t_idx) = tmp_t.sigma;
-                    else  %add a new subspace and remove the subspace with largest reconstruction error
-                        if num_tmpl < opt.num_tmpl % if the number of subspace is less than the setting
-                            curTmpl(i).mean_pos(:,:,num_tmpl+1) = params{i}.wimg;
-                            [negSample,~] = SelectNeg(imgI, params{i}.est, opt);
-                            tmp_t = PLS_sub(params{i}.wimg, negSample, opt);
-                            curTmpl(i).mean(:,:,num_tmpl+1) = tmp_t.mean;
-                            curTmpl(i).template(:,num_tmpl+1) = tmp_t.template;
-                            curTmpl(i).W(:,:,num_tmpl+1) = tmp_t.W;
-                            curTmpl(i).sigma(:,num_tmpl+1) = tmp_t.sigma;
-                        else            
-                            if params{i}.max_t_idx ~= 1  
-                                curTmpl(i).mean_pos(:,:,params{i}.max_t_idx) = params{i}.wimg;
+                    else %只维护一个要5个model的model set
+                        if params{i}.mini_t_dis < 0.790
+                            if num_tmpl < opt.num_tmpl % if the number of subspace is less than the setting, add a new subspace 
+                                curTmpl(i).mean_pos(:,:,num_tmpl+1) = params{i}.wimg;
                                 [negSample,~] = SelectNeg(imgI, params{i}.est, opt);
                                 tmp_t = PLS_sub(params{i}.wimg, negSample, opt);
-                                curTmpl(i).mean(:,:,params{i}.max_t_idx) = tmp_t.mean;
-                                curTmpl(i).template(:,params{i}.max_t_idx) = tmp_t.template;
-                                curTmpl(i).W(:,:,params{i}.max_t_idx) = tmp_t.W;
-                                curTmpl(i).sigma(:,params{i}.max_t_idx) = tmp_t.sigma;
+                                curTmpl(i).mean(:,:,num_tmpl+1) = tmp_t.mean;
+                                curTmpl(i).template(:,num_tmpl+1) = tmp_t.template;
+                                curTmpl(i).W(:,:,num_tmpl+1) = tmp_t.W;
+                                curTmpl(i).sigma(:,num_tmpl+1) = tmp_t.sigma;
+                            else  %add a new subspace and remove the subspace with largest reconstruction error           
+                                if params{i}.max_t_idx ~= 1  %被替换掉的model的不能是第一个，因为第一个是ground truth
+                                    curTmpl(i).mean_pos(:,:,params{i}.max_t_idx) = params{i}.wimg;
+                                    [negSample,~] = SelectNeg(imgI, params{i}.est, opt);
+                                    tmp_t = PLS_sub(params{i}.wimg, negSample, opt);
+                                    curTmpl(i).mean(:,:,params{i}.max_t_idx) = tmp_t.mean;
+                                    curTmpl(i).template(:,params{i}.max_t_idx) = tmp_t.template;
+                                    curTmpl(i).W(:,:,params{i}.max_t_idx) = tmp_t.W;
+                                    curTmpl(i).sigma(:,params{i}.max_t_idx) = tmp_t.sigma;
+                                end
                             end
-                        end       
+                        else
+                            pos =  obj.getPosFromParam(opt.tmplsize, params{i}.est);  
+                            if ~obj.isInScope(pos)
+                                stopIdArray(i) = 1;
+                                continue;                            
+                            end
+                        end      
                     end
                     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% show the result %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%    
     %                 paramRes = [paramRes param.est]; 
                     pos =  obj.getPosFromParam(opt.tmplsize, params{i}.est);   
                     obj.m_seqObj.addBBToAFrm(obj.m_funcH, frmIndex, pSmplsInfo.id(i), pos, 0);
                 end
-                obj.m_seqObj.seqPlay(frmIndex - 1,frmIndex);
-            end
-        end
-        
-        function [negSample, p] = SelectNeg0(I, param, opt)
-            tmplSz = opt.tmplsize;
-            numN = opt.negNum;
-            numP = opt.posNum;
-            r = opt.r;
-            negSample = zeros(tmplSz(1), tmplSz(2), numN, numP);%4D array
-            p = zeros(6, numN, numP);
-
-            for i = 1:numP
-                paramP = param{i}; 
-                geoParamP = affparam2geom(param{i});
-                x = geoParamP(1);
-                y = geoParamP(2);
-                width = geoParamP(3)*tmplSz(2); 
-
-                height = width*geoParamP(5);
-
-                [nrows, ncols] = size(I);
-
-                inner = sqrt(width^2+height^2)/2+sqrt(tmplSz(1)^2+tmplSz(2)^2)/2;
-                out = r*inner;
-                count=0;
-                while (1)
-                    p_amplitude = inner+(out-inner)*rand(1);
-                    p_angle = 2*pi*rand(1);
-                    xx = p_amplitude*cos(p_angle);
-                    xx = round(xx)+x; 
-                    yy = p_amplitude*sin(p_angle);
-                    yy = round(yy)+y;
-
-                    left = round(xx - width/2);
-                    right = round(xx + width/2);
-                    top = round(yy - height/2);
-                    bottom = round(yy + height/2);
-                    if left>0 && right<ncols && top>0 && bottom<nrows
-                        count = count+1;
-                        paramN = paramP;
-                        paramN(1:2) = [xx yy];
-                        negSample(:, :, count, i) = warpimg(I, paramN, tmplSz);
-
-                        p(:, count, i) = paramN; 
-                    end
-                    if count == numN
-                        break;
-                    end
+                if playFlag
+                    obj.m_seqObj.seqPlay(frmIndex - 2,frmIndex);
+                    playFlag = 0;
+                else
+                    playFlag = 1;
                 end
+               
             end
+            len = length(obj.m_tmplOrigins);
+            tmpLen = length(tmplOrigin);
+            for i = 1:tmpLen
+                obj.m_tmplOrigins{len + i} = tmplOrigin{i};
+            end
+            
+            obj.m_tmplSets = [obj.m_tmplSets curTmpl(:)'];
         end
         
-        function [posSample, p] = SelectPos0(I, param, opt)
-            tmplsize = opt.tmplsize;
-            posNum = opt.posNum;
-            posSample = zeros(tmplsize(1), tmplsize(2), posNum);
-            p = zeros(6, posNum);
-            for i = 1:posNum
-                posSample(:,:,i) = warpimg(I, param{i}, tmplsize);%get the sample region img patch
-            end
-        end
-        
-        function tmpl = PLS_sub0(posSample, negSample, opt)
-
-            [nrows,ncols,numP] = size(posSample);%numP indicates the total number of positives
-            numN = size(negSample, 3);%numN indicates the number of negatives that belongs to a positive
-            numSmp = 1 + numN;%for one positive,numSmp = positive(one sample) +its negatives
-            numPix = nrows*ncols;
-
-            % samples,one positive sample follows numN negative
-            %Init space
-
-
-            tmpl.mean = zeros(opt.tmplsize(1), opt.tmplsize(2), opt.num_tmpl);%32, 32, 5;
-            tmpl.mean_pos = zeros(opt.tmplsize(1), opt.tmplsize(2), opt.num_tmpl);%32, 32, 5
-            tmpl.template = zeros(opt.projNum, opt.num_tmpl);%projNum=10, 5
-            tmpl.W = zeros(opt.tmplsize(1)*opt.tmplsize(2), opt.projNum, opt.num_tmpl);%32*32, 10, 5
-            tmpl.sigma = zeros(opt.tmplsize(1)*opt.tmplsize(2), opt.num_tmpl);%32*32, 5
-
-            tmpl = repmat(tmpl, numP, 1);
-
-            for i = 1:numP
-                temp = reshape(posSample(:,:,i),[numPix,1]);% Reshape array.one column one sample.reshape the intensity matrix into one column
-                smpData(1,:) = temp';%transpose,so one row one sample.
-                temp = reshape(negSample(:,:,:,i),[numPix,numN]);%one column one sample
-                smpData(2:numN + 1,:) = temp';
-                % label
-                smpLable = zeros(numSmp,1);    
-                smpLable(1) = 1;
-
-                [smpData,~,sigmaX] = zscore(smpData);
-                [smpLable,~,sigmaY] = zscore(smpLable);
-                % centering the training data
-                muX = mean(smpData);%相同位置的像素为一个特征，所以一共有32*32个attribute？求各个特征的均值;calculate the mean of each cloumn
-                muY = mean(smpLable,1);
-                smpData = smpData -  ones(numSmp,1)*muX;
-                smpLable = smpLable - ones(numSmp,1)*muY;
-
-
-                %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-                [XL,YL,XS,YS,beta,PCTVAR,MSE,stats]  = plsregress(smpData, smpLable,opt.projNum); % SIMPLS
-                tmpl(i).W = stats.W;          
-                tmpl(i).mean =  reshape(muX', nrows, ncols);%make the sample pixels-wise intensity mean from row vector back to a intensity matrix 
-                tmpl(i).sigma = sigmaX';
-                %mean of the positive samples
-                tmpl(i).template = tmpl.W'*smpData(1,:)'; 
+        function tf = isInScope(obj, pos)
+            tf = 0;
+            [width, height] = obj.m_seqObj.getFrameSize();
+            tlX = pos(1);
+            tlY = pos(2);
+            brX = pos(1) + pos(3);
+            brY = pos(2) + pos(4);
+            if brX < (width - 15) && brY < height && tlX > 0 && tlY > 0
+                tf = 1;
             end
         end
         

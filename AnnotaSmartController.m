@@ -22,6 +22,7 @@ classdef AnnotaSmartController < handle
            obj.m_fps = -1;
            obj.m_modelOrigins = {};
            obj.m_modelSets = [];
+%            parpool('local',2);
         end
         
         function deleteAnnotation(obj)
@@ -45,7 +46,7 @@ classdef AnnotaSmartController < handle
            if obj.m_seqObj.getStatus() == obj.m_seqObj.STATUS_PlAY 
                obj.m_seqObj.videoPause();
            else
-               obj.m_seqObj.videoPlay();
+               obj.m_seqObj.videoPlay(obj.m_viewObj);
            end
         end
         
@@ -61,6 +62,36 @@ classdef AnnotaSmartController < handle
             obj.m_bbId = bbId;
         end
         
+        function callback_rectChange(obj, bbId, rectPos)
+            curFrmNum = obj.m_seqObj.m_curFrm;
+            key = num2str(bbId);
+            if ~isKey(obj.m_seqObj.m_objEndFrmMap, key)||~isKey(obj.m_seqObj.m_objEndFrmMap, key)
+                return;
+            end
+            endFrmNum = obj.m_seqObj.m_objEndFrmMap(key);
+            startFrmNum = obj.m_seqObj.m_objStartFrmMap(key);
+            for i = startFrmNum:curFrmNum - 1
+                frameObj = obj.m_seqObj.m_FrameObjArray(i);
+                bbObj = frameObj.getObj(bbId);
+                pos = bbObj.getPos();
+                w = obj.weighFactor(i, curFrmNum);
+                pos = (1-w)*pos + w*rectPos;
+                bbObj.setPos(pos);
+            end
+            for i = curFrmNum + 1:endFrmNum
+                 frameObj = obj.m_seqObj.m_FrameObjArray(i);
+                bbObj = frameObj.getObj(bbId);
+                pos = bbObj.getPos();
+                w = obj.weighFactor(i, curFrmNum);
+                pos = pos.*(1-w) + rectPos.*w;
+                bbObj.setPos(pos);
+            end
+        end
+        
+        function w = weighFactor(obj, ind1,ind2)
+            w = abs(ind2 - ind1);
+            w = 1/(w*w);
+        end
         function callback_deleteAnnotaBtn(obj, src, event)
                 obj.deleteAnnotation();
         end
@@ -140,6 +171,12 @@ classdef AnnotaSmartController < handle
              obj.m_viewObj.m_keyStatus = (~strcmp(key, obj.m_viewObj.m_keyNames) & obj.m_viewObj.m_keyStatus);
         end
   
+        function frameNumUpdate(obj)
+            set(obj.m_viewObj.m_frames, 'String', num2str(obj.m_seqObj.m_curFrm)); 
+        end
+        function setFrameTotalNum(obj, viewObj)
+             set(viewObj.m_totalFrames, 'String',['/ ' num2str(obj.m_seqObj.m_numFrm)]);
+        end
         function callback_openVideo(obj, src, event)
             obj.m_viewObj.enableBtn('off');
             [fileName, pathName] = uigetfile('*.seq;*.avi','open annotation file');
@@ -149,7 +186,11 @@ classdef AnnotaSmartController < handle
             filePath = [pathName fileName];
             obj.m_seqObj = SeqModel.getSeqFileInstance(filePath);
             obj.m_seqObj.setCurFigAndAxes(obj.m_viewObj.m_hFig, obj.m_viewObj.m_playerPanel.hAx);
+            funcH = @obj.frameNumUpdate;
+            obj.m_seqObj.setFrameNumChangeCallback(funcH);
             obj.m_viewObj.enableBtn('on');
+            obj.frameNumUpdate();
+            obj.setFrameTotalNum(obj.m_viewObj);
         end
         
         function callback_openAnnotation(obj, src, event)
